@@ -45,6 +45,15 @@ test('fixedTheme dark applies the dark variables unconditionally', () => {
   assert.ok(dark.indexOf(darkPanel) > dark.indexOf(panel(svg)[0]));
 });
 
+test('fixedTheme paints a full-size canvas rect beneath everything', () => {
+  const svg = cliSvg();
+  for (const [theme, fill] of [['light', '#ffffff'], ['dark', '#0d1117']]) {
+    const out = fixedTheme(svg, theme);
+    const after = out.slice(out.indexOf('</style>') + '</style>'.length);
+    assert.ok(after.startsWith(`<rect width="100%" height="100%" fill="${fill}"/>`), theme);
+  }
+});
+
 test('fixedTheme throws on an SVG without the dark block', () => {
   assert.throws(() => fixedTheme('<svg><style>svg.dg{--dg-panel:#fff}</style></svg>', 'dark'), /dark/);
   assert.throws(() => fixedTheme('<svg></svg>', 'light'), /dark/);
