@@ -2,6 +2,9 @@
 # Run every offline test in the repo (stdlib unittest, no pytest, no model calls).
 set -uo pipefail
 cd "$(dirname "$0")/.."
+# The knowledge tests build their own local state in temp dirs; an exported override from the
+# caller's shell would point them all at one directory and turn the suite red.
+unset KNOWLEDGE_LOCAL_DIR
 fail=0
 while IFS= read -r t; do
   dir=$(dirname "$t"); file=$(basename "$t")

@@ -9,7 +9,7 @@
 </h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/plugins-5-D97757" alt="5 plugins">
+  <img src="https://img.shields.io/badge/plugins-6-D97757" alt="6 plugins">
   <img src="https://img.shields.io/badge/Claude%20Code-plugin%20marketplace-1d1d1f" alt="Claude Code plugin marketplace">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2f7d4f" alt="MIT licence"></a>
 </p>
@@ -75,8 +75,8 @@ Plugin skills are namespaced by plugin: type `/session:handoff`, not
 ## Plugins
 
 The examples below come from one demo project, a small bookshop's checkout. The screenshots and
-diagrams are real plugin output. The handoff note and the scenario row are written by hand, in
-the formats the plugins use.
+diagrams are real plugin output, and so is the knowledge digest line. The handoff note, the
+scenario row and the knowledge rule are written by hand, in the formats the plugins use.
 
 ### `session`
 
@@ -228,6 +228,49 @@ Ran `run.mjs checkout` -> provisioned -> ran suite -> torn down
 ## Bugs found
 
 ### BUG-1 · the last copy can be sold twice
+```
+
+### `knowledge`
+
+`knowledge` keeps a project's knowledge base as atomic YAML rules in `.claude/knowledge/`, and it
+puts the right rule in front of Claude at the right moment. A digest of every rule is injected at
+session start. Before Claude edits a file, the bodies of the rules that match it are injected,
+and after the edit the rules' `check:` commands run on the file. Any session pushes what it
+learns into a queue with `/knowledge:kb`, and a separate scribe session turns the queue into a
+plan of rules that you accept or reject one by one. `/knowledge:setup` seeds the base from
+Claude memory and from instruction files such as `CLAUDE.md`.
+
+- `/knowledge:setup`: seed the base, then choose the scribe's commit setting, the registration
+  for teammates, the git gate and the `ccscribe` shortcut. It is safe to re-run.
+- `/knowledge:kb <fact and what backs it>`: push an observation into the queue. In a scribe
+  session, started with `claude --agent knowledge:scribe`, `/knowledge:kb run` drains the queue.
+- Hooks, which need no command: the digest at session start, rule injection before an edit and
+  the checks after it. Each hook stays silent in a project that has no `.claude/knowledge/`.
+
+The [plugin's README](plugins/knowledge/README.md) covers setup, the scribe and the rule schema in
+full. A rule in the demo's `.claude/knowledge/checkout.yaml`:
+
+```yaml
+scope: project
+topic: checkout
+rules:
+  - id: reserve-before-charge
+    title: Reserve the copies before the card is charged
+    applies_to:
+      globs: ["orders/**/*.ts"]
+    severity: blocking
+    resident: true
+    trigger: changing the order flow
+    rule: Reserve every copy before the charge, and release the copies if the card is declined.
+    rationale: Charging first let two readers pay for the last copy at once.
+    source: "orders/checkout.ts:88, 2026-11-20"
+```
+
+The line it gets in the digest that every session starts with:
+
+```markdown
+## checkout
+- [blocking] reserve-before-charge — Reserve every copy before the charge, and release the copies if the card is declined. · when: changing the order flow
 ```
 
 ## Requirements and scope

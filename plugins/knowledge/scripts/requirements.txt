@@ -1,0 +1,2 @@
+pyyaml
+ast-grep-cli  # AST-based check backend (invoke as `ast-grep`); absent -> checks degrade to inconclusive
