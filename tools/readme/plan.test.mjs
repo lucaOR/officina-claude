@@ -16,8 +16,13 @@ test('demo plan renders its diagrams and the answered thread', async () => {
     const figures = html.match(/<figure[^>]*data-diagram=[^>]*>[\s\S]*?<\/figure>/g) ?? [];
     assert.ok(figures.length >= 2, `found ${figures.length} diagram figures`);
     for (const f of figures) assert.ok(f.includes('<svg'), 'a diagram figure has no svg');
-    const { answer } = JSON.parse(fs.readFileSync(path.join(root, '.github', 'assets', 'src', 'plan-thread.json'), 'utf8'));
+    const { target, answer } = JSON.parse(fs.readFileSync(path.join(root, '.github', 'assets', 'src', 'plan-thread.json'), 'utf8'));
     assert.ok(html.includes(answer), 'the answer text is on the page');
+    // The README picture shows the stock tab, with the answered thread inside the target's card.
+    const panel = html.match(/<section data-tab-panel="stock"[\s\S]*?<\/section>/)?.[0] ?? '';
+    const card = panel.match(new RegExp(`<article class="card" id="${target}"[\\s\\S]*?</article>`))?.[0] ?? '';
+    assert.match(card, /<div class="thread" [^>]*data-state="open"/, `no open thread in the ${target} card on the stock tab`);
+    assert.ok(card.includes(answer), `the answer is not in the ${target} card`);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }

@@ -15,6 +15,17 @@ const assets = path.join(root, '.github', 'assets');
 const src = path.join(assets, 'src');
 const SOCIAL = 'social-preview.png';
 
+// The plan picture shows the stock tab, which the page opens for a #stock address: the settled
+// D1 card beside the open D4 card, with its options and the answered thread from plan-thread.json.
+// The capture fails rather than show less than the README describes.
+const PLAN_TAB = 'stock';
+const PLAN_VIEW = `(() => {
+  const thread = document.querySelector('#D4 [data-thread]');
+  const card = thread && thread.closest('article');
+  if (!card || card.closest('[hidden]')) throw new Error('the D4 card and its thread are not on the page');
+  if (card.getBoundingClientRect().bottom > innerHeight) throw new Error('the D4 card does not fit in the capture');
+})()`;
+
 async function main() {
   const chrome = findChrome();
   if (!chrome) {
@@ -39,7 +50,7 @@ async function main() {
 
     for (const dark of [false, true]) {
       const t = dark ? 'dark' : 'light';
-      await browser.shot(pathToFileURL(plan).href, { out: path.join(assets, `plan-${t}.webp`), width: 1280, height: 860, dark });
+      await browser.shot(`${pathToFileURL(plan).href}#${PLAN_TAB}`, { out: path.join(assets, `plan-${t}.webp`), width: 1280, height: 1090, dark, prepare: PLAN_VIEW });
       await browser.shot(pathToFileURL(dashboard).href, { out: path.join(assets, `dashboard-${t}.webp`), width: 1280, height: 900, dark });
     }
 

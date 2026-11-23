@@ -1,14 +1,18 @@
 {"type": "workflow", "title": "Session handoff", "rows": [
   ["work", "Work on task", "frontend"],
   ["note", "/session:handoff writes note", "backend"],
+  ["gate", "Pivot gate judges note", "security"],
   ["clear", "/clear", "external"],
-  ["read", "Next session reads note", "backend"],
-  ["gate", "Intent still matches?", "security"],
-  ["go", "Continue", "cloud"],
+  ["start", "Session start: intent matches?", "security"],
+  ["rule", "You rule in intent file", "external"],
+  ["read", "Paste pointer, read note", "backend"],
   ["work > note"],
+  ["note > gate", "in background", "dashed"],
   ["note > clear"],
-  ["clear > read"],
-  ["read > gate"],
-  ["gate > go", "yes", "emphasis"],
-  ["gate > work", "pivot", "dashed"]
+  ["clear > start"],
+  ["gate > start", "verdict", "dashed"],
+  ["start > read", "pass", "emphasis"],
+  ["start > rule", "ESCALATE", "security"],
+  ["rule > read"],
+  ["read > work"]
 ]}

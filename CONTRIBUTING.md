@@ -55,9 +55,12 @@ It writes these files into `.github/assets/`:
   `-dark.svg`. The `diagrams` plugin's CLI renders each spec in `src/`, and the script then pins
   the SVG to one theme and paints a solid background, so that a `<picture>` element can pick
   the file that matches the visitor's GitHub theme.
-- `plan-light.webp` and `plan-dark.webp`, a 1280x860 screenshot of the plan page. The script
-  builds the plan with `planner-companion`'s `planning.mjs` from `src/plan.json` and
-  `src/plan-thread.json`, in a temporary folder with its own `HOME`.
+- `plan-light.webp` and `plan-dark.webp`, a 1280x1090 screenshot of the plan page's stock tab,
+  which shows the decision cards and the thread that `src/plan-thread.json` asks and answers.
+  The script builds the plan with `planner-companion`'s `planning.mjs` from `src/plan.json` and
+  `src/plan-thread.json`, in a temporary folder with its own `HOME`. It opens the page at
+  `#stock`, which the page itself turns into that tab, and fails when the answered card does
+  not fit in the capture.
 - `dashboard-light.webp` and `dashboard-dark.webp`, a 1280x900 screenshot of the token
   dashboard. The script writes seeded synthetic transcripts for `/demo/bookshop` and runs
   `token-hygiene`'s `SessionEnd` hook and dashboard builder over them. Both run with `HOME` set

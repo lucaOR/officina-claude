@@ -1,4 +1,5 @@
 {"type": "erd", "title": "Bookshop catalogue", "rows": [
+  ["entity stock", "Stock"],
   ["entity author", "Author"],
   ["entity book", "Book"],
   ["entity customer", "Customer"],
@@ -19,8 +20,11 @@
   ["line.order_id", "bigint", "fk", "order.id"],
   ["line.book_id", "bigint", "fk", "book.id"],
   ["line.quantity", "int"],
+  ["stock.book_id", "bigint", "pk,fk", "book.id"],
+  ["stock.copies", "int"],
   ["book > author", "many:one", "written by"],
   ["order > customer", "many:one", "placed by"],
   ["line > order", "many:one", "part of"],
-  ["line > book", "many:one", "sells"]
+  ["line > book", "many:one", "sells"],
+  ["stock > book", "one:one", "counts"]
 ]}

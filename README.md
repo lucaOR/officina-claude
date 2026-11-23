@@ -97,7 +97,7 @@ verbatim, and the pivot gate checks each new note against it.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/assets/handoff-loop-dark.svg">
-  <img src=".github/assets/handoff-loop-light.svg" alt="Workflow diagram of the handoff loop: work on a task, /session:handoff writes a note, /clear, the next session reads the note, and a check asks whether the intent still matches. A yes continues the work, and a pivot goes back to the task.">
+  <img src=".github/assets/handoff-loop-light.svg" alt="Workflow diagram of the handoff loop: work on a task, and /session:handoff writes a note, which the pivot gate judges in the background while you run /clear. At the next session start the gate reports whether the intent still matches. On a pass you paste the pointer and the session reads the note; an ESCALATE first goes to you, to rule on in the intent file. Then the work goes on.">
 </picture>
 
 A boundary note from the demo. The first line is the pointer that you paste after `/clear`,
@@ -130,7 +130,7 @@ the lever that would cut it.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/assets/dashboard-dark.webp">
-  <img src=".github/assets/dashboard-light.webp" alt="The token dashboard for the demo project: 613M billed tokens over 20 active days, tiles for fresh tokens, cache replay, burn rate, cost per response, delegated work and compactions, and a bar chart of billed tokens per day.">
+  <img src=".github/assets/dashboard-light.webp" alt="The token dashboard for the demo project: 613M billed tokens over 20 active days, tiles for fresh tokens, cache replay, burn rate, mean billed tokens per response, active time, delegated work, compactions and the heaviest and median day, and a bar chart of billed tokens per day.">
 </picture>
 
 ### `planner-companion`
@@ -148,7 +148,7 @@ the page's "Create the real plan" button writes it out as a `plan.md`.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/assets/plan-dark.webp">
-  <img src=".github/assets/plan-light.webp" alt="The plan page for the bookshop checkout: an overview of four decisions, one still open, and three tasks, above a sequence diagram of the checkout from the reader to the stock service.">
+  <img src=".github/assets/plan-light.webp" alt="The plan page for the bookshop checkout on its stock tab: a workflow of how copies are kept from being sold twice, the settled decision D1 with its picked option and why, and the open decision D4 with three options, the recommended one and what each trades off, above a comment that Claude has answered.">
 </picture>
 
 ### `diagrams`
@@ -169,7 +169,7 @@ plan diagrams with the same renderer.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/assets/catalogue-erd-dark.svg">
-  <img src=".github/assets/catalogue-erd-light.svg" alt="Entity-relationship diagram of the bookshop catalogue: Author, Book, Customer, Order and OrderLine, with their keys and many-to-one relationships.">
+  <img src=".github/assets/catalogue-erd-light.svg" alt="Entity-relationship diagram of the bookshop catalogue: Stock, Author, Book, Customer, Order and OrderLine, with their keys. Stock holds the copies of each book, one row per book, and the other relationships are many-to-one.">
 </picture>
 
 ### `scenario-matrix`
@@ -196,10 +196,10 @@ A row in `.claude/scenarios/checkout.yaml`, as the run left it:
     reach: wiring
     priority: P1
     setup:
-      - db: {target: scn_shop, sql: "UPDATE book SET stock = 1 WHERE id = 42"}
+      - db: {target: scn_shop, sql: "UPDATE stock SET copies = 1 WHERE book_id = 42"}
     steps:
       - action: "POST /orders for book 42 as two customers at the same moment"
-    expected: "one 201 and one 409 sold_out; book 42 ends with stock = 0"
+    expected: "one 201 and one 409 sold_out; the stock row for book 42 ends with copies = 0"
     status: drift
     last_run: "2026-11-20 KO"
     bug_ref: BUG-1
@@ -219,7 +219,7 @@ Ran `run.mjs checkout` -> provisioned -> ran suite -> torn down
 | id   | behaviour                        | result | runtime | why |
 |------|----------------------------------|--------|---------|-----|
 | C-01 | books reserved before the charge | OK     | 2.4s    |     |
-| C-02 | last copy, two readers at once   | KO     | 3.1s    | expected one 409, got two 201s (stock went to -1) |
+| C-02 | last copy, two readers at once   | KO     | 3.1s    | expected one 409, got two 201s (copies went to -1) |
 | C-03 | declined card releases the stock | OK     | 2.7s    |     |
 
 ## Bugs found
