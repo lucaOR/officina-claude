@@ -260,7 +260,7 @@ async function metricsFor(file, seen) {
   // write still moves the resident prefix, so skipping those would compare a large write against a
   // stale figure from several turns back and call an untouched prefix a break.
   let prevCacheRead = null;
-  // A pasted /handoff pointer carries a machine-readable sentinel. Without it the ledger
+  // A pasted /session:handoff pointer carries a machine-readable sentinel. Without it the ledger
   // cannot tell a handoff-seeded session from a cold /clear, which is the entire comparison the
   // init_context column exists to support.
   // Deliberately UNANCHORED. The pointer leads with the note's path and carries the sentinel

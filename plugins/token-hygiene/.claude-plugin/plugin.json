@@ -1,7 +1,7 @@
 {
   "name": "token-hygiene",
-  "version": "0.1.0",
-  "description": "Per-session token metrics recorded at SessionEnd, plus /token-dashboard to chart consumption, burn rate and cache behaviour.",
+  "version": "0.2.0",
+  "description": "Per-session token metrics and /token-dashboard to chart them, plus guards that keep the context small: read caps, re-read dedup, long-output squashing and a watchdog that interrupts once the context passes 150k tokens.",
   "author": {
     "name": "Luca Oronzo"
   }
