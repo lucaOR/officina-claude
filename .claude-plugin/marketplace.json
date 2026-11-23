@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "officina-claude",
-  "description": "Session handoffs, token metrics, live plan co-design and behaviour-driven scenario matrices for Claude Code.",
+  "description": "Session handoffs, token metrics, live plan co-design, offline diagrams and behaviour-driven scenario matrices for Claude Code.",
   "owner": {
     "name": "Luca Oronzo"
   },
@@ -24,6 +24,13 @@
       "name": "planner-companion",
       "source": "./plugins/planner-companion",
       "description": "Co-design a plan with Claude on a live local web page: decisions, diagrams and tasks, with archify-rendered sequence, workflow and ERD diagrams.",
+      "version": "0.1.0",
+      "category": "productivity"
+    },
+    {
+      "name": "diagrams",
+      "source": "./plugins/diagrams",
+      "description": "Sequence, workflow and entity-relationship diagrams from compact rows, rendered offline to static SVG with no dependencies.",
       "version": "0.1.0",
       "category": "productivity"
     },

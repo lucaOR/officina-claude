@@ -1,0 +1,8 @@
+{
+  "name": "diagrams",
+  "version": "0.1.0",
+  "description": "Sequence, workflow and entity-relationship diagrams from compact rows, rendered offline to static SVG with no dependencies.",
+  "author": {
+    "name": "Luca Oronzo"
+  }
+}

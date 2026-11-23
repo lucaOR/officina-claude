@@ -1,13 +1,14 @@
 # officina-claude
 
-A Claude Code plugin marketplace: session handoffs, token metrics, live plan co-design and
-behaviour-driven scenario matrices, packaged so any project can install them.
+A Claude Code plugin marketplace: session handoffs, token metrics, live plan co-design, offline
+diagrams and behaviour-driven scenario matrices, packaged so any project can install them.
 
 | Plugin | What it ships |
 |---|---|
 | `session` | `/session:refine` (interview a vague idea into an intent draft), `/session:handoff` (a note that lets `/clear` replace `/compact`), and the hooks behind them: handoff-note sweep and consumption marker, title inheritance on resume, and the pivot gate that checks each handoff note against `.claude/intents/<slug>.md`. |
 | `token-hygiene` | A `SessionEnd` hook that records per-session token metrics to `~/.claude/metrics/`, and `/token-hygiene:token-dashboard` to chart them. |
 | `planner-companion` | Co-design a plan with Claude on a live local web page, with archify-rendered sequence, workflow and ERD diagrams (vendored, no network). |
+| `diagrams` | `/diagrams:diagram` draws a sequence, workflow or entity-relationship diagram from compact rows into a standalone HTML page or SVG file. The renderer has no dependencies and needs no network or browser. |
 | `scenario-matrix` | `/scenario-matrix:setup` installs a behaviour-driven scenario harness sized to the project's stack; `:matrix` builds and compiles the matrix; `:run` runs it. |
 
 Plugin skills are namespaced by plugin: type `/session:handoff`, not
@@ -36,6 +37,7 @@ project's `.claude/settings.json`:
     "session@officina-claude": true,
     "token-hygiene@officina-claude": true,
     "planner-companion@officina-claude": true,
+    "diagrams@officina-claude": true,
     "scenario-matrix@officina-claude": true
   }
 }
@@ -43,7 +45,7 @@ project's `.claude/settings.json`:
 
 ### Requirements and scope
 
-- `python3` for the hooks and scripts of `session`, `token-hygiene` and `planner-companion`, and `node` for `token-hygiene` and `planner-companion`. `scenario-matrix` needs no `python3`.
+- `python3` for the hooks and scripts of `session`, `token-hygiene` and `planner-companion`, and `node` for `token-hygiene`, `planner-companion` and `diagrams`. `scenario-matrix` needs no `python3`.
 - `scenario-matrix` needs `node` 20 or later and `npm` in the target project; the `browser` adapter downloads Chromium.
 - A fresh clone of this repo needs `npm ci` in `plugins/scenario-matrix` before `bin/test`, because the runtime test assembly symlinks that package's `node_modules`.
 - `planner-companion` needs Claude Code 2.1.328 or later. Its page wakes the session through a background
