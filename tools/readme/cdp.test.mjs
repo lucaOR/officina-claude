@@ -220,3 +220,16 @@ test('a page sees US English whatever the caller\'s locale', { skip: !findChrome
     } finally { await browser.close(); }
   });
 }));
+
+test('a second shot of the same page reloads it under the new colour scheme', { skip: !findChrome() }, () => withTmp(async (dir) => {
+  // The page records the colour scheme it loaded under, as the dashboard does when it draws.
+  const page = path.join(dir, 'p.html');
+  fs.writeFileSync(page, '<script>document.title = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"</script>');
+  const url = `file://${page}#part`;
+  const browser = await openBrowser(findChrome());
+  try {
+    const opts = { width: 320, height: 200, timeout: 5000, prepare: 'document.title' };
+    assert.equal(await browser.shot(url, { ...opts, out: path.join(dir, 'a.webp') }), 'light');
+    assert.equal(await browser.shot(url, { ...opts, out: path.join(dir, 'b.webp'), dark: true }), 'dark');
+  } finally { await browser.close(); }
+}));

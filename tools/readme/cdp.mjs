@@ -157,9 +157,12 @@ export async function openBrowser(chromePath, { startTimeout = 10_000 } = {}) {
           timer = setTimeout(() => reject(new Error(`${short(url)} did not finish loading within ${timeout / 1000} s`)), timeout);
         });
         try {
-          const nav = await Promise.race([send('Page.navigate', { url }), loaded.then(() => ({}))]);
+          const nav = await Promise.race([send('Page.navigate', { url }), loaded.then(() => ({ loaderId: 'loaded' }))]);
           // A failed load still shows Chromium's error page, which must never become an image.
           if (nav.errorText) throw new Error(`could not load ${short(url)}: ${nav.errorText}`);
+          // The same page again (a new #fragment at most) is a same-document navigation, which
+          // fires no load event and keeps what the page drew under the old colour scheme.
+          if (!nav.loaderId) await send('Page.reload', { ignoreCache: true });
           await loaded;
         } finally {
           listeners.delete(onLoad);
