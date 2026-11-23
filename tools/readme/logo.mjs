@@ -1,3 +1,5 @@
+import { CANVAS } from './themes.mjs';
+
 // The README logo: the Claude Code mascot in pixel art, in a yellow hard hat, holding a wrench.
 // Each grid character is one square pixel; the SVG is transparent, so the eyes show the page colour.
 export const LOGO_ROWS = [
@@ -36,11 +38,12 @@ export function logoSvg() {
 }
 
 // The title under the logo, as in the old banner: "officina" in the theme ink, "-claude" in
-// terracotta. GitHub strips colour from HTML text, so it is an SVG, one file per theme.
+// terracotta. GitHub strips colour from HTML text, so it is an SVG, one file per theme. It bakes in
+// the GitHub canvas, because a <picture> follows the OS scheme while GitHub may show the other theme.
 // 760 units leave about 20 spare on each side of DejaVu Sans Bold (720 wide), the widest fallback.
 const INK = { light: '#1d1d1f', dark: '#e6edf3' };
 
 export function wordmarkSvg(theme) {
   if (!(theme in INK)) throw new Error(`unknown theme: ${theme}`);
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 112" width="760" height="112" role="img" aria-label="officina-claude">\n<text x="380" y="82" text-anchor="middle" fill="${INK[theme]}" style="font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:88px;font-weight:700;letter-spacing:-1px">officina<tspan fill="#D97757">-claude</tspan></text>\n</svg>\n`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 112" width="760" height="112" role="img" aria-label="officina-claude">\n<rect width="760" height="112" fill="${CANVAS[theme]}"/>\n<text x="380" y="82" text-anchor="middle" fill="${INK[theme]}" style="font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:88px;font-weight:700;letter-spacing:-1px">officina<tspan fill="#D97757">-claude</tspan></text>\n</svg>\n`;
 }

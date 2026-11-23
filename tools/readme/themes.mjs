@@ -3,7 +3,7 @@ const DARK_BLOCK = /@media \(prefers-color-scheme: dark\)\{(svg\.dg\{[^}]*\})\}/
 
 // GitHub's canvas colours: the page background follows the viewer's GitHub theme,
 // not the OS, so each file carries its own solid background.
-const CANVAS = { light: '#ffffff', dark: '#0d1117' };
+export const CANVAS = { light: '#ffffff', dark: '#0d1117' };
 
 export function fixedTheme(svg, theme) {
   if (theme !== 'light' && theme !== 'dark') throw new Error(`unknown theme: ${theme}`);

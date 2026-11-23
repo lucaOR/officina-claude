@@ -66,10 +66,9 @@ test('the wordmark colours -claude terracotta', () => {
   }
 });
 
-test('the wordmarks are transparent, small and self-contained', () => {
+test('the wordmarks are small and self-contained', () => {
   for (const t of ['light', 'dark']) {
     const svg = fs.readFileSync(wordmarkFile(t), 'utf8');
-    assert.ok(!svg.includes('<rect'), t);
     assert.ok(!svg.includes('prefers-color-scheme'), t);
     assert.ok(Buffer.byteLength(svg) < 4096, t);
     assert.ok(svg.endsWith('\n'), t);
@@ -77,4 +76,15 @@ test('the wordmarks are transparent, small and self-contained', () => {
     assert.deepEqual(urls.filter((u) => u !== SVG_NS), [], t);
   }
   assert.throws(() => wordmarkSvg('sepia'));
+});
+
+test('the wordmark background is the theme canvas', () => {
+  const CANVAS = { light: '#ffffff', dark: '#0d1117' };
+  for (const t of ['light', 'dark']) {
+    const svg = fs.readFileSync(wordmarkFile(t), 'utf8');
+    const rects = svg.match(/<rect\b[^>]*>/g) ?? [];
+    assert.equal(rects.length, 1, t);
+    assert.equal(rects[0], `<rect width="760" height="112" fill="${CANVAS[t]}"/>`, t);
+    assert.ok(svg.indexOf('<rect') < svg.indexOf('<text'), t);
+  }
 });
