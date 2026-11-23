@@ -117,3 +117,27 @@ test('a page whose load event never fires times out', { skip: !findChrome(), tim
     server.close();
   }
 }));
+
+test('a prepare script runs in the loaded page before the screenshot, and its value comes back', { skip: !findChrome() }, () => withTmp(async (dir) => {
+  const browser = await openBrowser(findChrome());
+  try {
+    const out = path.join(dir, 'x.webp');
+    const value = await browser.shot('data:text/html,<title>before</title><p>hi', {
+      out, width: 320, height: 200,
+      prepare: 'new Promise((r) => requestAnimationFrame(() => r(document.title + "/" + innerWidth)))',
+    });
+    assert.equal(value, 'before/320');
+    assert.ok(fs.existsSync(out));
+  } finally { await browser.close(); }
+}));
+
+test('a prepare script that throws fails the shot and writes no file', { skip: !findChrome() }, () => withTmp(async (dir) => {
+  const browser = await openBrowser(findChrome());
+  try {
+    const out = path.join(dir, 'x.webp');
+    await assert.rejects(browser.shot('data:text/html,<p>hi', {
+      out, width: 320, height: 200, prepare: 'document.getElementById("missing").click()',
+    }), /prepare script failed/);
+    assert.equal(fs.existsSync(out), false);
+  } finally { await browser.close(); }
+}));

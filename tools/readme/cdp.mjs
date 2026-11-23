@@ -105,9 +105,11 @@ export async function openBrowser(chromePath, { startTimeout = 10_000 } = {}) {
     return {
       /**
        * Loads `url` and writes a screenshot to `out`. Rejects, writing nothing, when the page
-       * fails to load or has not fired its load event within `timeout` ms.
+       * fails to load or has not fired its load event within `timeout` ms. `prepare`, a JavaScript
+       * expression, runs in the loaded page before the screenshot (to pick a tab or scroll, say);
+       * a promise it returns is awaited, and shot() resolves to its value.
        */
-      async shot(url, { out, width, height, dark = false, format = 'webp', quality = 85, timeout = 30_000 }) {
+      async shot(url, { out, width, height, dark = false, format = 'webp', quality = 85, timeout = 30_000, prepare }) {
         await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
         // Set the colour scheme before navigating: the dashboard draws its charts on load.
         await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: dark ? 'dark' : 'light' }] });
@@ -128,10 +130,20 @@ export async function openBrowser(chromePath, { startTimeout = 10_000 } = {}) {
           clearTimeout(timer);
         }
         await sleep(300);
+        let value;
+        if (prepare) {
+          const r = await send('Runtime.evaluate', { expression: prepare, awaitPromise: true, returnByValue: true });
+          if (r.exceptionDetails) {
+            throw new Error(`the prepare script failed on ${short(url)}: ${r.exceptionDetails.exception?.description || r.exceptionDetails.text}`);
+          }
+          value = r.result.value;
+          await sleep(300);
+        }
         const params = format === 'png' ? { format } : { format, quality };
         const { data } = await send('Page.captureScreenshot', params);
         fs.mkdirSync(path.dirname(out), { recursive: true });
         fs.writeFileSync(out, Buffer.from(data, 'base64'));
+        return value;
       },
       async close() {
         ws.close();
