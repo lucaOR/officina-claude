@@ -41,3 +41,20 @@ test('shots run through a symlinked repo path still runs, and fails with no brow
   assert.notEqual(r.status, 0, `exited ${r.status} with stdout ${JSON.stringify(r.stdout)}`);
   assert.match(r.stderr, /CHROME/);
 }));
+
+const assetsDir = path.join(root, '.github', 'assets');
+const stamp = () => Object.fromEntries(fs.readdirSync(assetsDir).map((f) => [f, fs.statSync(path.join(assetsDir, f)).mtimeMs]));
+
+test('a broken CHROME fails with a clear message before any image is written', () => withTmp((dir) => {
+  const chrome = path.join(dir, 'chrome');
+  fs.writeFileSync(chrome, 'not a program');
+  const before = stamp();
+  const r = spawnSync(process.execPath, [path.join(root, 'tools', 'readme', 'shots.mjs')], {
+    encoding: 'utf8',
+    env: noBrowser(dir, { CHROME: chrome }),
+  });
+  assert.equal(r.status, 1, r.stderr);
+  assert.match(r.stderr, /could not start Chromium/);
+  assert.doesNotMatch(r.stderr, /\n\s+at /, 'printed a stack trace');
+  assert.deepEqual(stamp(), before, 'files under .github/assets changed');
+}));

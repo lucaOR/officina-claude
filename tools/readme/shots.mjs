@@ -22,14 +22,21 @@ async function main() {
     process.exit(1);
   }
 
-  const work = fs.mkdtempSync(path.join(os.tmpdir(), 'readme-shots-'));
+  // Start the browser before anything is written, so a broken one leaves the assets as they were.
   let browser;
+  try {
+    browser = await openBrowser(chrome);
+  } catch (e) {
+    console.error(e.message);
+    process.exit(1);
+  }
+
+  const work = fs.mkdtempSync(path.join(os.tmpdir(), 'readme-shots-'));
   try {
     renderDiagramAssets(src, assets);
     const plan = await buildDemoPlan(path.join(work, 'plan'));
     const dashboard = await buildDemoDashboard(path.join(work, 'dashboard'));
 
-    browser = await openBrowser(chrome);
     for (const dark of [false, true]) {
       const t = dark ? 'dark' : 'light';
       await browser.shot(pathToFileURL(plan).href, { out: path.join(assets, `plan-${t}.webp`), width: 1280, height: 860, dark });
@@ -43,7 +50,7 @@ async function main() {
       console.log(`skipped ${SOCIAL}: ${path.relative(root, social)} does not exist yet`);
     }
   } finally {
-    if (browser) await browser.close();
+    await browser.close();
     fs.rmSync(work, { recursive: true, force: true });
   }
 
