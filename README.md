@@ -72,7 +72,7 @@ Plugin skills are namespaced by plugin: type `/session:handoff`, not
 | Whole-file reads, re-reads and long test logs swell the context before compaction kicks in | [`token-hygiene`](#token-hygiene) |
 | A plan drifts from what you meant, and reviewing it in the terminal is slow | [`planner-companion`](#planner-companion) |
 | You want a sequence, workflow or ER diagram without Mermaid, a browser or network | [`diagrams`](#diagrams) |
-| Behaviour regressions slip through because nobody lists the scenarios | [`scenario-matrix`](#scenario-matrix) |
+| Behaviour regressions in a web app or API slip through because nobody lists the scenarios | [`scenario-matrix`](#scenario-matrix) |
 | Claude forgets the project's conventions and repeats mistakes it was already corrected on | [`knowledge`](#knowledge) (`/knowledge:kb`) |
 
 ## Plugins
@@ -201,6 +201,15 @@ Node harness sized to the project's stack, with adapters for a browser, HTTP, SQ
 Docker and more. `/scenario-matrix:matrix` compiles each row into an executable script, and
 `/scenario-matrix:run` runs the scripts and writes a report of the bugs it found.
 
+It fits a web product whose behaviour shows up in a browser, an HTTP API, a database or a
+container. The adapters drive Chromium through Playwright, call HTTP endpoints, query MySQL,
+MariaDB or PostgreSQL inside Docker, read container logs and a Mailpit mailbox, and talk to stub
+servers, with extras for Laravel and Sanctum. A native desktop app, for example one written in
+C++ with Qt or Win32, has no adapter, because nothing in the catalog can click a native window or
+read its widgets. A project can still write its own levers in Node, such as one that runs a
+command-line build of the app and checks its output or the files it writes. Every row that needs
+the GUI, though, stays uncompiled, and `/scenario-matrix:run` reports it as BLOCKED.
+
 - `/scenario-matrix:setup`: detect the stack, propose the adapters and install them once you
   confirm. `--upgrade` refreshes the plugin-owned files, and `--add <adapter>` adds one more.
 - `/scenario-matrix:matrix <epic> build | add "<behaviour>" | compile`: derive the matrix from
@@ -294,6 +303,7 @@ The line it gets in the digest that every session starts with:
 
 - `python3` for the hooks and scripts of `session`, `token-hygiene`, `planner-companion` and `knowledge`, and `node` for `token-hygiene`, `planner-companion` and `diagrams`. `scenario-matrix` needs no `python3`.
 - `scenario-matrix` needs `node` 20 or later and `npm` in the target project; the `browser` adapter downloads Chromium.
+  Its adapters reach web products only, so a native desktop GUI is out of scope; see [`scenario-matrix`](#scenario-matrix).
 - `planner-companion` needs Claude Code 2.1.328 or later. Its page wakes the session through a background
   `Bash` watcher, which was proven on that version and is untested on older ones.
 - The refine reviewer and the pivot gate shell out to `claude -p`, so the CLI must be on `PATH`.
