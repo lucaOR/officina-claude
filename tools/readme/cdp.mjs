@@ -23,6 +23,10 @@ export function findChrome(env = process.env, home = os.homedir()) {
 }
 
 const STDERR_TAIL = 2000; // characters of Chromium's stderr kept for error messages
+
+// Chromium on Linux takes its locale from the environment, and --lang does not change it, so the
+// dashboard's date inputs would follow the caller's LANG (01.10.2026 under de_DE). Pin it.
+const LOCALE = { LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8', LANGUAGE: 'en_US' };
 const short = (url) => (url.length > 80 ? `${url.slice(0, 77)}...` : url);
 
 /**
@@ -33,9 +37,9 @@ const short = (url) => (url.length > 80 ? `${url.slice(0, 77)}...` : url);
 export async function openBrowser(chromePath, { startTimeout = 10_000 } = {}) {
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'readme-chrome-'));
   const proc = spawn(chromePath, [
-    '--headless', '--no-sandbox', '--disable-gpu', '--remote-debugging-port=0',
+    '--headless', '--no-sandbox', '--disable-gpu', '--hide-scrollbars', '--remote-debugging-port=0',
     `--user-data-dir=${profile}`, 'about:blank',
-  ], { stdio: ['ignore', 'ignore', 'pipe'] });
+  ], { stdio: ['ignore', 'ignore', 'pipe'], env: { ...process.env, ...LOCALE } });
 
   let stderr = '';
   proc.stderr.setEncoding('utf8');

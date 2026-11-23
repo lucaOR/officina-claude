@@ -141,3 +141,35 @@ test('a prepare script that throws fails the shot and writes no file', { skip: !
     assert.equal(fs.existsSync(out), false);
   } finally { await browser.close(); }
 }));
+
+// Runs fn with these variables set in this process's environment, then restores them.
+async function withEnv(vars, fn) {
+  const saved = Object.fromEntries(Object.keys(vars).map((k) => [k, process.env[k]]));
+  Object.assign(process.env, vars);
+  try { return await fn(); } finally {
+    for (const [k, v] of Object.entries(saved)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
+  }
+}
+
+test('Chromium starts with a US English locale and hidden scrollbars', () => withTmp(async (dir) => {
+  const dump = path.join(dir, 'dump');
+  const chrome = fakeChrome(dir, `printf '%s\\n' "$@" > "${dump}.args"; env > "${dump}.env"; exit 1`);
+  await withEnv({ LANG: 'de_DE.UTF-8', LC_ALL: 'de_DE.UTF-8', LANGUAGE: 'de' }, () => assert.rejects(openBrowser(chrome)));
+  assert.ok(fs.readFileSync(`${dump}.args`, 'utf8').split('\n').includes('--hide-scrollbars'));
+  const env = fs.readFileSync(`${dump}.env`, 'utf8').split('\n');
+  for (const line of ['LANG=en_US.UTF-8', 'LC_ALL=en_US.UTF-8', 'LANGUAGE=en_US']) assert.ok(env.includes(line), line);
+}));
+
+test('a page sees US English whatever the caller\'s locale', { skip: !findChrome() }, () => withTmp(async (dir) => {
+  // Under de_DE, Chromium reports "de" and draws the dashboard's date inputs as 01.10.2026.
+  await withEnv({ LANG: 'de_DE.UTF-8', LC_ALL: 'de_DE.UTF-8' }, async () => {
+    const browser = await openBrowser(findChrome());
+    try {
+      const value = await browser.shot('data:text/html,<p>hi', {
+        out: path.join(dir, 'x.webp'), width: 320, height: 200,
+        prepare: 'navigator.language + " " + Intl.DateTimeFormat().resolvedOptions().locale',
+      });
+      assert.equal(value, 'en-US en-US');
+    } finally { await browser.close(); }
+  });
+}));

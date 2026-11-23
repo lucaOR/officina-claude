@@ -15,9 +15,11 @@ function run(script, args, env) {
 
 export async function buildDemoDashboard(workDir) {
   // HOME is always the work dir's own, so neither child can reach the real ~/.claude/metrics.
+  // The hook buckets session hours by the system timezone and reads its thresholds from METRICS_*
+  // variables, so the image pins the first and drops every one of the second.
   const home = path.join(workDir, 'home');
-  const env = { ...process.env, HOME: home, CLAUDE_PROJECT_DIR: '/demo/bookshop' };
-  for (const k of ['METRICS_SUFFIX', 'METRICS_DIR', 'METRICS_RESCAN']) delete env[k];
+  const env = { ...process.env, HOME: home, CLAUDE_PROJECT_DIR: '/demo/bookshop', TZ: 'UTC' };
+  for (const k of Object.keys(env)) if (k.startsWith('METRICS_')) delete env[k];
 
   writeDemoTranscripts(path.join(home, '.claude', 'projects', '-demo-bookshop'));
   run(HOOK, [], env);
