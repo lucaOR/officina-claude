@@ -1,0 +1,14 @@
+{"type": "workflow", "title": "Session handoff", "rows": [
+  ["work", "Work on task", "frontend"],
+  ["note", "/session:handoff writes note", "backend"],
+  ["clear", "/clear", "external"],
+  ["read", "Next session reads note", "backend"],
+  ["gate", "Intent still matches?", "security"],
+  ["go", "Continue", "cloud"],
+  ["work > note"],
+  ["note > clear"],
+  ["clear > read"],
+  ["read > gate"],
+  ["gate > go", "yes", "emphasis"],
+  ["gate > work", "pivot", "dashed"]
+]}

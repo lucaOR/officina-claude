@@ -1,0 +1,18 @@
+{"type": "sequence", "title": "Bookshop checkout", "rows": [
+  ["actor reader", "Reader", "external"],
+  ["actor web", "Shop web", "frontend"],
+  ["actor orders", "Orders API"],
+  ["actor pay", "Payments", "security"],
+  ["actor stock", "Stock", "database"],
+  ["phase", "Place order"],
+  ["reader", "web", "Checkout basket"],
+  ["web", "orders", "POST /orders"],
+  ["orders", "stock", "reserve books", "emphasis"],
+  ["stock", "orders", "reserved", "return"],
+  ["phase", "Confirm"],
+  ["orders", "pay", "charge card", "security"],
+  ["pay", "orders", "paid", "return"],
+  ["orders", "stock", "commit stock"],
+  ["orders", "web", "201 confirmed", "return"],
+  ["web", "reader", "Order summary", "return"]
+]}
