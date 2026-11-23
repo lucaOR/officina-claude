@@ -69,6 +69,7 @@ Plugin skills are namespaced by plugin: type `/session:handoff`, not
 | `/compact` summaries lose the thread, or a new session starts cold | [`session`](#session) (`/session:handoff`) |
 | A vague idea needs pinning down before anyone writes code | [`session`](#session) (`/session:refine`) |
 | You can't tell which sessions or habits burn your token budget | [`token-hygiene`](#token-hygiene) |
+| Whole-file reads, re-reads and long test logs swell the context before compaction kicks in | [`token-hygiene`](#token-hygiene) |
 | A plan drifts from what you meant, and reviewing it in the terminal is slow | [`planner-companion`](#planner-companion) |
 | You want a sequence, workflow or ER diagram without Mermaid, a browser or network | [`diagrams`](#diagrams) |
 | Behaviour regressions slip through because nobody lists the scenarios | [`scenario-matrix`](#scenario-matrix) |
@@ -137,6 +138,20 @@ the lever that would cut it.
   <source media="(prefers-color-scheme: dark)" srcset=".github/assets/dashboard-dark.webp">
   <img src=".github/assets/dashboard-light.webp" alt="The token dashboard for the demo project: 613M billed tokens over 20 active days, tiles for fresh tokens, cache replay, burn rate, mean billed tokens per response, active time, delegated work, compactions and the heaviest and median day, and a bar chart of billed tokens per day.">
 </picture>
+
+The plugin also keeps the context small while you work. Every response is billed for the whole
+context it replays, so a file read once is paid for again on every later turn. These guards run
+on their own, and each one has a switch:
+
+| Guard | What it does | Switch |
+|---|---|---|
+| Read cap | Denies an unbounded `Read` of a text file over 24 KB and asks for a line range, a grep or a subagent. An identical second attempt goes through. | `READ_CAP_BYTES`, `READ_CAP_DISABLE=1` |
+| Re-read guard | Denies a `Read` of lines already read in this session from a file that has not changed. An identical second attempt goes through, and `/clear` or a compaction starts the count again. | `REREAD_GUARD_DISABLE=1` |
+| Output squash | Pipes test runners, builds, installs and `docker logs` through a filter that keeps the start, the end and the error lines of a long output. The command's exit status is kept. | `NO_SQUASH=1` before a command, `SQUASH_DISABLE=1` |
+| Context watchdog | When the context passes 150k tokens, it interrupts once: it denies the next tool call, or blocks the stop if the turn is ending. Claude then writes a `/session:handoff` note for you to `/clear` on, or asks you to `/compact`. | `CONTEXT_WARN_TOKENS`, `CONTEXT_WATCHDOG_MODE=wild` for advice only, `CONTEXT_WARN=0` |
+| External reads, off by default | Denies a `Read`, or a `cat`-style command, on a path outside the project, `~/.claude` and the session scratchpad, so that outside material is copied to the scratchpad and read by a subagent. It assumes the scratchpad sits under `/tmp/claude-*`, as on Linux. | `EXTERNAL_READ_ENABLE=1` |
+
+Set a switch in the `env` block of the project's `.claude/settings.json`.
 
 ### `planner-companion`
 

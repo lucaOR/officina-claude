@@ -27,8 +27,9 @@ Path rules that keep a plugin portable:
   links to `plugins/diagrams/lib`, and `reference/diagram-rows.md` links to that plugin's row reference.
 
 `scenario-matrix`'s `no-project-names` test keeps project-specific names out of the plugin,
-and `knowledge`'s `scripts/test_skill_refs.py` does the same for every file of that plugin.
-Both read the names from a gitignored `.project-terms` file at the repo root, one term per line,
+and `knowledge`'s `scripts/test_skill_refs.py` and `token-hygiene`'s `hooks/test_hooks_json.py`
+do the same for every file of their plugin.
+All three read the names from a gitignored `.project-terms` file at the repo root, one term per line,
 and skip that check when the file is absent.
 
 ### Refine eval
