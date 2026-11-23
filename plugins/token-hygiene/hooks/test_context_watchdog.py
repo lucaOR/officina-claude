@@ -162,6 +162,16 @@ class WatchdogTest(unittest.TestCase):
         for route in ("/session:handoff", "/clear", "/compact"):
             self.assertIn(route, reason)
 
+    def test_a_project_handoff_skill_counts_as_a_way_out(self):
+        """A project can ship its own handoff skill instead of the session plugin. Naming only
+        /session:handoff would steer such a project onto /compact at every crossing. The skill
+        stays unnamed, because the plugin cannot know what a project calls it."""
+        self.at(DEFAULT_THRESHOLD)
+        reason = self.tool_call()["hookSpecificOutput"]["permissionDecisionReason"]
+        self.assertIn("the project's own", reason)
+        advice = self.tool_call(session="s2", CONTEXT_WATCHDOG_MODE="wild")["systemMessage"]
+        self.assertIn("the project's own", advice)
+
     # -- fail-open --------------------------------------------------------------------------
 
     def test_a_missing_transcript_is_inert(self):

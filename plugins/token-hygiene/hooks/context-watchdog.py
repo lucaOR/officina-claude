@@ -63,10 +63,10 @@ EXEMPT_TOOLS = ("Skill",)
 # a turn that emitted an unusually large tool_result after it.
 TAIL_BYTES = (262_144, 2_097_152)
 
-WAYS_OUT = ("If the /session:handoff skill is available, invoke it and output its note, then "
-            "stop and tell the user to run /clear. Otherwise stop and tell the user to run "
-            "/compact. /clear and /compact are built-in commands, so the user must type them; "
-            "you cannot.")
+WAYS_OUT = ("If a handoff skill is available (/session:handoff, or the project's own), invoke "
+            "it and output its note, then stop and tell the user to run /clear. Otherwise stop "
+            "and tell the user to run /compact. /clear and /compact are built-in commands, so "
+            "the user must type them; you cannot.")
 KNOBS = ("Set CONTEXT_WARN_TOKENS to retune, CONTEXT_WATCHDOG_MODE=wild for advice without "
          "interruptions, or CONTEXT_WARN=0 to silence.")
 NOT_INTERRUPTING_WILD = ("Not interrupting: CONTEXT_WATCHDOG_MODE=wild turns the watchdog into "
@@ -182,9 +182,10 @@ def advice(ctx: int, limit: int, why_not: str) -> dict:
     carries the recommendation: at a clean boundary a handoff and /clear beat a compaction."""
     return {"systemMessage": (
         f"Context is at {ctx:,} tokens (threshold {limit:,}). Every further response is billed "
-        f"for roughly this much. At a clean task boundary, prefer /session:handoff then /clear, "
-        f"which starts lower than the floor a compaction leaves. Mid-task, with nothing clean to "
-        f"put in a note, run /compact instead. {why_not} {KNOBS}")}
+        f"for roughly this much. At a clean task boundary, prefer a handoff skill "
+        f"(/session:handoff, or the project's own) then /clear, which starts lower than the "
+        f"floor a compaction leaves. Mid-task, with nothing clean to put in a note, run "
+        f"/compact instead. {why_not} {KNOBS}")}
 
 
 def main() -> None:
