@@ -9,6 +9,7 @@ import { findChrome, openBrowser } from './cdp.mjs';
 import { renderDiagramAssets } from './diagrams.mjs';
 import { buildDemoPlan } from './plan.mjs';
 import { buildDemoDashboard } from './dashboard.mjs';
+import { logoSvg, wordmarkSvg } from './logo.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const assets = path.join(root, '.github', 'assets');
@@ -45,6 +46,8 @@ async function main() {
   const work = fs.mkdtempSync(path.join(os.tmpdir(), 'readme-shots-'));
   try {
     renderDiagramAssets(src, assets);
+    fs.writeFileSync(path.join(assets, 'logo.svg'), logoSvg());
+    for (const t of ['light', 'dark']) fs.writeFileSync(path.join(assets, `wordmark-${t}.svg`), wordmarkSvg(t));
     const plan = await buildDemoPlan(path.join(work, 'plan'));
     const dashboard = await buildDemoDashboard(path.join(work, 'dashboard'));
 

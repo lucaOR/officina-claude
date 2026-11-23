@@ -6,28 +6,23 @@
 <style>
   html, body { margin: 0; }
   body {
-    position: relative; box-sizing: border-box; width: 1280px; height: 640px; padding-top: 64px;
+    position: relative; box-sizing: border-box; width: 1280px; height: 640px; padding-top: 52px;
     background: #ffffff; color: #1d1d1f;
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; text-align: center;
   }
-  /* The banner's pegboard, carried over the whole page: same 32 px holes, same fade towards the middle.
-     The banner sits two rows down, so its holes line up with these. */
-  body::before {
-    content: ""; position: absolute; inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Ccircle cx='16' cy='16' r='2.5' fill='%231d1d1f' fill-opacity='.16'/%3E%3C/svg%3E");
-    -webkit-mask-image: linear-gradient(to right, #000, transparent 26%, transparent 74%, #000);
-    mask-image: linear-gradient(to right, #000, transparent 26%, transparent 74%, #000);
-  }
   img, p { position: relative; }
-  img { display: block; width: 1280px; height: 320px; }
+  img { display: block; width: 300px; height: auto; margin: 0 auto; }
+  h1 { margin: 22px 0 0; font-size: 64px; line-height: 1.1; font-weight: 700; letter-spacing: -1px; }
+  h1 span { color: #D97757; }
   p { margin: 0 auto; }
-  .tagline { max-width: 860px; margin-top: -6px; font-size: 30px; line-height: 1.4; color: #5b6474; }
-  .url { margin-top: 26px; font-size: 26px; font-weight: 600; }
+  .tagline { max-width: 960px; margin-top: 16px; font-size: 28px; line-height: 1.4; color: #5b6474; }
+  .url { margin-top: 24px; font-size: 24px; font-weight: 600; }
 </style>
 </head>
 <body>
-  <img src="../banner-light.svg" alt="officina-claude: Claude Code plugins from the workshop">
-  <p class="tagline">Session handoffs, token metrics, live plan co-design, offline diagrams and behaviour-driven scenario matrices.</p>
+  <img src="../logo.svg" alt="officina-claude logo">
+  <h1>officina<span>-claude</span></h1>
+  <p class="tagline">Claude Code plugins from the workshop: session handoffs, token metrics, live plan co-design, offline diagrams and behaviour-driven scenario matrices.</p>
   <p class="url">github.com/lucaOR/officina-claude</p>
 </body>
 </html>

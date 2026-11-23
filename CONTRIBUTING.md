@@ -38,7 +38,7 @@ project that has the `session` plugin enabled. Pass the project to the scorer wi
 
 ## README images
 
-Apart from the hand-drawn banner, every image in the README is real plugin output. The plugins
+Apart from the pixel-art logo, every image in the README is real plugin output. The plugins
 render the images from demo data: the diagram specs and the plan in `.github/assets/src/`, and
 the synthetic transcripts that `tools/readme/transcripts.mjs` writes. The demo is a small
 bookshop's checkout, and the metrics project is `/demo/bookshop`. `bin/readme-shots`
@@ -69,10 +69,13 @@ It writes these files into `.github/assets/`:
   the script.
 - `social-preview.png`, a 1280x640 screenshot of `src/social.html`. This file is gitignored.
   Upload it by hand in the repository's Settings > General > Social preview.
-
-The two banners, `banner-light.svg` and `banner-dark.svg`, are drawn by hand, so the script
-does not touch them. `tools/readme/banner.test.mjs` checks their size, their solid background
-and their plugin chips.
+- `logo.svg`, the pixel-art logo at the top of the README: the Claude Code mascot in a hard hat.
+  `tools/readme/logo.mjs` holds its pixel grid and writes the SVG, which is transparent so one
+  file serves both themes. `tools/readme/logo.test.mjs` checks that the committed file matches
+  the generator, that the hat is as wide as the mascot, and that the file stays small.
+- `wordmark-light.svg` and `wordmark-dark.svg`, the title under the logo, with `-claude` in
+  terracotta. GitHub strips colour from HTML text, so the title is an SVG that a `<picture>`
+  element picks by theme. `wordmarkSvg()` in `tools/readme/logo.mjs` writes both.
 
 The screenshots need a headless Chromium. The script uses the binary that `CHROME` names. When
 `CHROME` is unset or names no file, it takes the newest `chromium_headless_shell-*` build in the

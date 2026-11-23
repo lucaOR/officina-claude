@@ -118,3 +118,10 @@ test('no project term appears in docs or asset sources', { skip: !fs.existsSync(
   }
   assert.deepEqual(hits, [], 'project terms found; open these lines to see which');
 });
+
+test('README has one level-one heading, and it holds the wordmark picture', () => {
+  const md = doc('README.md');
+  const h1 = [...prose(md).matchAll(/^(?:# .*|<h1\b[\s\S]*?<\/h1>)$/gm)].map((m) => m[0]);
+  assert.equal(h1.length, 1, h1.join('\n'));
+  assert.match(h1[0], /^<h1 align="center">[\s\S]*<picture>[\s\S]*wordmark-dark\.svg[\s\S]*<img [^>]*wordmark-light\.svg[^>]*alt="officina-claude"/);
+});

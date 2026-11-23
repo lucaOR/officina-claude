@@ -1,9 +1,12 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset=".github/assets/banner-dark.svg">
-    <img src=".github/assets/banner-light.svg" alt="officina-claude, Claude Code plugins from the workshop: session, token-hygiene, planner-companion, diagrams and scenario-matrix">
-  </picture>
+  <img src=".github/assets/logo.svg" width="240" alt="officina-claude logo: the Claude Code mascot in pixel art, wearing a yellow hard hat and holding a wrench">
 </p>
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset=".github/assets/wordmark-dark.svg">
+    <img src=".github/assets/wordmark-light.svg" height="60" alt="officina-claude">
+  </picture>
+</h1>
 
 <p align="center">
   <img src="https://img.shields.io/badge/plugins-5-D97757" alt="5 plugins">
