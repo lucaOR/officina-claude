@@ -23,8 +23,8 @@
     {
       "name": "planner-companion",
       "source": "./plugins/planner-companion",
-      "description": "Co-design a plan with Claude on a live local web page: decisions, diagrams and tasks, with archify-rendered sequence, workflow and ERD diagrams.",
-      "version": "0.1.0",
+      "description": "Co-design a plan with Claude on a live local web page: decisions, diagrams and tasks, with sequence, workflow and ERD diagrams drawn offline.",
+      "version": "0.2.0",
       "category": "productivity"
     },
     {

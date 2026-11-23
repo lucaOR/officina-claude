@@ -12,16 +12,13 @@ import { initPlan, plansDir, stateDir } from './lib/store.mjs';
 import * as queue from './lib/queue.mjs';
 import { applyPatch, pick as pickOption, undo as undoChange, updateReal } from './lib/changes.mjs';
 
-async function diagram(args) {
-  const cacheAt = args.indexOf('--cache');
-  const cacheDir = cacheAt >= 0 ? args[cacheAt + 1] : undefined;
-  const positionals = args.filter((a, i) => !a.startsWith('--') && !(cacheAt >= 0 && i === cacheAt + 1));
-  const file = positionals[0];
+function diagram(args) {
+  const file = args.find(a => !a.startsWith('--'));
   if (!file) return usage('diagram needs a spec file');
   let spec;
   try { spec = JSON.parse(fs.readFileSync(file, 'utf8')); }
   catch (e) { return print({ ok: false, error: `cannot read spec: ${e.message}` }, 1); }
-  const result = await renderDiagram(spec, { cacheDir });
+  const result = renderDiagram(spec);
   return print(result, result.ok ? 0 : 1);
 }
 
@@ -254,7 +251,7 @@ async function stop(args) {
 
 // name, summary, handler
 const COMMANDS = [
-  ['diagram', 'render a compact-row diagram spec to JSON: diagram <spec.json> [--cache <dir>]', diagram],
+  ['diagram', 'render a compact-row diagram spec to JSON: diagram <spec.json>', diagram],
   ['validate', 'validate a plan source: validate <source.json> [--previous <source.json>]', validate],
   ['index', 'print the code index of a plan source as JSON: index <source.json>', index],
   ['init', 'create a plan folder and print its path: init <slug> --title <t> [--date YYYY-MM-DD] [--project <dir>]', init],

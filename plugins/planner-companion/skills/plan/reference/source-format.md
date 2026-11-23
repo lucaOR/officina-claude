@@ -30,7 +30,15 @@ One JSON file, `working.json` while a plan is being drafted and `plan.json` once
 
 `removed` is absent on live elements. `pick` and `whyPick` are required when `state` is `settled`; `recommended` is required when it is `open`. A decision with `"domain": null` is cross-domain and shows on the Overview. `flow.phaseDomains` maps each `phase` row name of the flow (a sequence diagram) to a domain id.
 
-Diagrams are archify compact rows. The type is `sequence` (flow), `workflow` (a domain) or `erd` (entities); nothing else. The validator checks only that rows are arrays of strings; `planning.mjs diagram <spec.json>` checks that they render.
+Diagrams are compact rows, described in `diagram-rows.md`. Each diagram field takes one shape:
+
+| Source field | Type | Shape |
+|---|---|---|
+| `flow` | `sequence` | `{"title", "rows", "phaseDomains"}` |
+| `domains[].diagram` | `workflow`, `sequence` or `erd` | `{"type", "title", "rows"}` |
+| `entities` | `erd` | `{"title", "rows"}` |
+
+In `flow`, each phase label is a key of `phaseDomains`, such as `{"Ask": "ask"}`, so that its band links to the domain that decides it. A decision's `nodes` are node, actor or entity ids from these rows, or `m<n>` for a sequence's n-th message. The validator checks only that rows are arrays of strings. To check that a diagram renders, write it as `{"type", "title", "rows"}` to a spec file, with `sequence` for the flow and `erd` for the entities, and run `planning.mjs diagram <spec.json>`.
 
 ## Codes
 

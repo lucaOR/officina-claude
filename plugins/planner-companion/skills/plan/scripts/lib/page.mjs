@@ -2,9 +2,8 @@
 // (CSS, diagram CSS, client JS); the page makes no outbound request. Every source string is escaped.
 import fs from 'node:fs';
 import { buildIndex, CODE_RE } from './source.mjs';
-import path from 'node:path';
 import { renderDiagram } from './diagrams.mjs';
-import { planPaths, readJson, stateDir } from './store.mjs';
+import { planPaths, readJson } from './store.mjs';
 import { unanswered } from './queue.mjs';
 
 const CSS = fs.readFileSync(new URL('../page/page.css', import.meta.url), 'utf8');
@@ -352,8 +351,7 @@ export function renderPage(state, diagrams, opts = {}) {
 /** The whole review page for a plan folder: state, every diagram (a failed one becomes an error box) and the HTML. */
 export async function renderPlanPage(dir) {
   const state = loadPageState(dir);
-  const cacheDir = path.join(stateDir(dir), 'diagrams');
   const diagrams = {};
-  for (const spec of pageDiagrams(state.source)) diagrams[spec.id] = await renderDiagram(spec, { cacheDir }).catch(e => ({ ok: false, error: e.message }));
+  for (const spec of pageDiagrams(state.source)) diagrams[spec.id] = renderDiagram(spec);
   return renderPage(state, diagrams, { clientJs: loadClientJs() });
 }

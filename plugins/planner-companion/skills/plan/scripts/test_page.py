@@ -371,9 +371,9 @@ class PageTest(ChangesTestCase):
         self.assertNotIn("<link", html)
         self.assertEqual(Page(html).root.find_all("script", src=True), [])
 
-    def test_render_writes_diagram_cache_in_state_dir(self):
+    def test_render_keeps_no_diagram_cache(self):
         self.render()
-        self.assertTrue(list((self.state_dir(self.dir) / "diagrams").glob("*.json")))
+        self.assertFalse((self.state_dir(self.dir) / "diagrams").exists())
 
     def test_help_lists_render(self):
         self.assertRegex(self.cli("--help").stdout, r"(?m)^render\s")

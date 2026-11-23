@@ -128,20 +128,17 @@
   }
 
   // ---- diagram <-> card linking --------------------------------------------------------------
-  // Adapted and modified from Archify explainer/reader.js (the `spotlight` and `linkTerms`
-  // functions), licensed Apache-2.0; see vendor/archify/LICENSE and NOTICE.
+  // A diagram node, a card that names nodes in `data-nodes`, and a term in the text are linked:
+  // hovering one lights its partners.
 
-  // The named nodes stay lit and the rest of the diagram dims.
-  function spotlight(figure, nodes = []) {
-    const svgHost = $('.pl-diagram', figure);
-    if (!svgHost) return;
-    let matched = false;
-    for (const node of $$('[data-node-id]', svgHost)) {
-      const hit = nodes.includes(node.dataset.nodeId);
-      matched ||= hit;
-      node.classList.toggle('hl', hit);
-    }
-    svgHost.classList.toggle('focusing', matched);
+  // Marks the nodes named in `ids` with `.hl`; while any is marked, the diagram is `.focusing`,
+  // which fades its other nodes. An empty list clears both.
+  function spotlight(figure, ids = []) {
+    const host = $('.pl-diagram', figure);
+    if (!host) return;
+    const nodes = $$('[data-node-id]', host);
+    for (const node of nodes) node.classList.toggle('hl', ids.includes(node.dataset.nodeId));
+    host.classList.toggle('focusing', nodes.some(node => node.classList.contains('hl')));
   }
 
   const figuresIn = panel => $$('figure[data-diagram]', panel || document);
@@ -179,46 +176,55 @@
     lightFrom(source);
   }
 
-  // A name in the text that is also a node label becomes a hover link to that node, once per panel.
-  function linkTerms() {
-    const word = /[\p{L}\p{N}_]/u;
-    for (const panel of panels()) {
-      const terms = new Map();
-      for (const figure of figuresIn(panel)) {
-        for (const node of $$('[data-node-id][data-node-label]', figure)) {
-          const label = node.dataset.nodeLabel.trim();
-          if (label.length >= 3 && !terms.has(label.toLowerCase())) terms.set(label.toLowerCase(), { diagram: figure.dataset.diagram, node: node.dataset.nodeId });
-        }
+  // A node label of three characters or more that also appears in a panel's text becomes a hover
+  // link to that node (a `.term`), at its first whole-word occurrence in the panel. A sequence's
+  // messages are nodes too, but their labels are phrases rather than names, so they stay out.
+  const NO_TERMS_IN = 'figure,pre,code,a,button,svg,script,style,.term,.thread,.tag,.did,summary,thead,textarea';
+  const WORD_CHAR = /[\p{L}\p{N}_]/u;
+
+  function termsOf(panel) {
+    const terms = new Map();
+    for (const figure of figuresIn(panel)) {
+      for (const node of $$('[data-node-id][data-node-label]:not(.dg-message)', figure)) {
+        const label = node.dataset.nodeLabel.trim();
+        const key = label.toLowerCase();
+        if (label.length >= 3 && !terms.has(key)) terms.set(key, { diagram: figure.dataset.diagram, node: node.dataset.nodeId });
       }
+    }
+    return terms;
+  }
+
+  function textNodesOf(panel) {
+    const walker = document.createTreeWalker(panel, NodeFilter.SHOW_TEXT, {
+      acceptNode: text => (text.parentElement.closest(NO_TERMS_IN) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
+    });
+    const found = [];
+    for (let text = walker.nextNode(); text; text = walker.nextNode()) found.push(text);
+    return found;
+  }
+
+  function linkTerms() {
+    for (const panel of panels()) {
+      const terms = termsOf(panel);
       if (!terms.size) continue;
-      const pattern = new RegExp([...terms.keys()].sort((a, b) => b.length - a.length).map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'giu');
-      const walker = document.createTreeWalker(panel, NodeFilter.SHOW_TEXT, {
-        acceptNode: text => (text.parentElement.closest('figure,pre,code,a,button,svg,script,style,.term,.thread,.tag,.did,summary,thead,textarea') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
-      });
-      const texts = [];
-      while (walker.nextNode()) texts.push(walker.currentNode);
-      const seen = new Set();
-      for (const text of texts) {
+      const longestFirst = [...terms.keys()].sort((a, b) => b.length - a.length);
+      const pattern = new RegExp(longestFirst.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'giu');
+      const linked = new Set();
+      for (const text of textNodesOf(panel)) {
         const value = text.nodeValue;
-        const parts = [];
-        let last = 0;
+        const pieces = [];
+        let from = 0;
         for (const match of value.matchAll(pattern)) {
-          const before = value[match.index - 1];
-          const after = value[match.index + match[0].length];
-          if (seen.has(match[0].toLowerCase()) || (before && word.test(before)) || (after && word.test(after))) continue;
-          seen.add(match[0].toLowerCase());
-          parts.push(value.slice(last, match.index), match[0]);
-          last = match.index + match[0].length;
+          const key = match[0].toLowerCase();
+          const end = match.index + match[0].length;
+          const wholeWord = !WORD_CHAR.test(value[match.index - 1] || '') && !WORD_CHAR.test(value[end] || '');
+          if (linked.has(key) || !wholeWord) continue;
+          linked.add(key);
+          const { diagram, node } = terms.get(key);
+          pieces.push(value.slice(from, match.index), el('span', { class: 'term', 'data-diagram': diagram, 'data-node': node, text: match[0] }));
+          from = end;
         }
-        if (!parts.length) continue;
-        const fragment = document.createDocumentFragment();
-        parts.forEach((part, i) => {
-          if (i % 2 === 0) { fragment.append(part); return; }
-          const target = terms.get(part.toLowerCase());
-          fragment.append(el('span', { class: 'term', 'data-diagram': target.diagram, 'data-node': target.node, text: part }));
-        });
-        fragment.append(value.slice(last));
-        text.replaceWith(fragment);
+        if (pieces.length) text.replaceWith(...[...pieces, value.slice(from)].filter(piece => piece !== ''));
       }
     }
   }

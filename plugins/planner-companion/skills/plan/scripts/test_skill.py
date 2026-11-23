@@ -101,10 +101,11 @@ class SkillTests(unittest.TestCase):
         self.assertGreaterEqual(len(emitted), 20)
         self.assertEqual(emitted - table, set(), "diagnostic codes missing from reference/source-format.md")
 
-    def test_diagram_call_needs_no_cache_dir(self):
+    def test_diagram_call_takes_only_the_spec(self):
         self.assertFalse("--cache" in self.skill_text(), "SKILL.md's diagram call still passes --cache")
         r = subprocess.run(["node", str(CLI), "--help"], capture_output=True, text=True, timeout=60)
-        self.assertIn("diagram <spec.json> [--cache <dir>]", r.stdout)
+        self.assertIn("diagram <spec.json>", r.stdout)
+        self.assertNotIn("--cache", r.stdout)
 
     def test_init_call_passes_the_project(self):
         call = re.search(re.escape(INVOCATION) + r"init [^`]*", self.skill_text()).group(0)

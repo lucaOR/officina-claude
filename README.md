@@ -7,7 +7,7 @@ diagrams and behaviour-driven scenario matrices, packaged so any project can ins
 |---|---|
 | `session` | `/session:refine` (interview a vague idea into an intent draft), `/session:handoff` (a note that lets `/clear` replace `/compact`), and the hooks behind them: handoff-note sweep and consumption marker, title inheritance on resume, and the pivot gate that checks each handoff note against `.claude/intents/<slug>.md`. |
 | `token-hygiene` | A `SessionEnd` hook that records per-session token metrics to `~/.claude/metrics/`, and `/token-hygiene:token-dashboard` to chart them. |
-| `planner-companion` | Co-design a plan with Claude on a live local web page, with archify-rendered sequence, workflow and ERD diagrams (vendored, no network). |
+| `planner-companion` | Co-design a plan with Claude on a live local web page, with sequence, workflow and ERD diagrams drawn offline by the `diagrams` renderer. |
 | `diagrams` | `/diagrams:diagram` draws a sequence, workflow or entity-relationship diagram from compact rows into a standalone HTML page or SVG file. The renderer has no dependencies and needs no network or browser. |
 | `scenario-matrix` | `/scenario-matrix:setup` installs a behaviour-driven scenario harness sized to the project's stack; `:matrix` builds and compiles the matrix; `:run` runs it. |
 
@@ -73,6 +73,10 @@ Path rules that keep a plugin portable:
 - Inside an agent or a `hooks/hooks.json`, refer to plugin files as `${CLAUDE_PLUGIN_ROOT}/...`.
 - Never reach into the project's `.claude/` for code. Only the project's data lives there.
 - Hook scripts find the project through `$CLAUDE_PROJECT_DIR` and fail open.
+- To share code between plugins, link it with a relative symlink that stays inside this repo.
+  Installing a plugin copies the link's target in its place, so each installed plugin is
+  self-contained. `planner-companion` gets the renderer this way: `skills/plan/scripts/lib/diagram`
+  links to `plugins/diagrams/lib`, and `reference/diagram-rows.md` links to that plugin's row reference.
 
 `scenario-matrix`'s `no-project-names` test keeps project-specific names out of the plugin.
 It reads them from a gitignored `.project-terms` file at the repo root, one term per line,
