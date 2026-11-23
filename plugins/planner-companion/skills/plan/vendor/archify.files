@@ -1,0 +1,12 @@
+renderers/sequence/
+renderers/workflow/
+renderers/erd/
+renderers/architecture/routing.mjs
+renderers/shared/
+explainer/diagrams.mjs
+locales/
+assets/template.html
+LICENSE
+LICENSE-MIT
+NOTICE
+THIRD_PARTY_NOTICES.md

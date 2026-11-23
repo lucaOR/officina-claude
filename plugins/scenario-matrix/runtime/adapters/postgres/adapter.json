@@ -1,0 +1,22 @@
+{
+  "name": "postgres",
+  "version": "0.1.0",
+  "description": "Drives the psql client for the sql levers and plants a sentinel table to prove a baseline restore ran.",
+  "requires": ["sql", "docker"],
+  "detect": [
+    { "kind": "line", "glob": "docker-compose*.y*ml", "regex": "image:\\s*\\S*postgres" },
+    { "kind": "line", "glob": "compose*.y*ml", "regex": "image:\\s*\\S*postgres" },
+    { "kind": "line", "glob": ".env*", "regex": "^(DB_CONNECTION=pgsql|DATABASE_URL=postgres)" },
+    { "kind": "dep", "manifest": "package.json", "name": "^(pg|postgres)$" }
+  ],
+  "files": ["adapter-postgres.mjs"],
+  "exports": {},
+  "drivers": ["sql.postgres"],
+  "npm": {},
+  "postInstall": [],
+  "systemPackages": {},
+  "config": { "sentinelDb": null },
+  "infra": [],
+  "api": "api.md",
+  "tests": ["db-postgres.test.mjs"]
+}

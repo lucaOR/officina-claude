@@ -1,0 +1,25 @@
+{
+  "name": "browser",
+  "version": "0.1.0",
+  "description": "Opens a Playwright page, replays login recipes against it, captures page evidence on a failure, and fails individual requests from the browser side.",
+  "requires": [],
+  "detect": [
+    { "kind": "file", "glob": "playwright.config.*" },
+    { "kind": "dep", "manifest": "**/package.json", "name": "^(@playwright/test|playwright)$" },
+    { "kind": "registryKey", "key": "login" }
+  ],
+  "files": ["browser.mjs", "login.mjs", "adapter-browser.mjs"],
+  "exports": {
+    "login.mjs": ["login", "assertMarker", "LAUNCH_OPTIONS", "CONTEXT_OPTIONS", "TIMEOUTS"],
+    "browser.mjs": ["openBrowser", "screenshot", "snap"],
+    "fault.mjs": ["routeFault"]
+  },
+  "drivers": ["routeFault"],
+  "npm": { "playwright": "1.61.1" },
+  "postInstall": ["npx playwright install chromium"],
+  "systemPackages": { "debian": ["libasound2t64"] },
+  "config": {},
+  "infra": [],
+  "api": "api.md",
+  "tests": ["browser.test.mjs", "login.test.mjs", "fault-browser.test.mjs", "classification-browser.test.mjs"]
+}

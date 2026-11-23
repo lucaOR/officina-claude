@@ -1,0 +1,8 @@
+{
+  "name": "planner-companion",
+  "version": "0.1.0",
+  "description": "Co-design a plan with Claude on a live local web page: decisions, diagrams and tasks, with archify-rendered sequence, workflow and ERD diagrams.",
+  "author": {
+    "name": "Luca Oronzo"
+  }
+}

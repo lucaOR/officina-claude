@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Run every offline test in the repo (stdlib unittest, no pytest, no model calls).
+set -uo pipefail
+cd "$(dirname "$0")/.."
+fail=0
+while IFS= read -r t; do
+  dir=$(dirname "$t"); file=$(basename "$t")
+  if out=$(cd "$dir" && python3 -m unittest "${file%.py}" 2>&1); then
+    printf 'ok    %s  (%s)\n' "$t" "$(grep -oE 'Ran [0-9]+ tests?' <<<"$out")"
+  else
+    printf 'FAIL  %s\n%s\n' "$t" "$out"; fail=1
+  fi
+done < <(find plugins -name 'test_*.py' -not -path '*/__pycache__/*' | sort)
+while IFS= read -r t; do
+  if out=$(node --test "$t" 2>&1); then
+    printf 'ok    %s  (%s tests)\n' "$t" "$(grep -oE '^(ℹ|#) tests [0-9]+' <<<"$out" | grep -oE '[0-9]+$')"
+  else
+    printf 'FAIL  %s\n%s\n' "$t" "$out"; fail=1
+  fi
+done < <(find plugins -name '*.test.mjs' -not -path '*/node_modules/*' -not -path '*/runtime/*' -not -path '*/fixtures/*' | sort)
+exit $fail

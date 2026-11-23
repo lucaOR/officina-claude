@@ -1,0 +1,40 @@
+epic: neutral
+perimeter:
+  in: [notes list]
+  out: [export]
+infra:
+  provisioning: [start the app]
+  teardown: [stop the app]
+  baseline_restore: [reload the baseline]
+  env_registry:
+    hosts: { app: app.test }
+    login:
+      markers: { home: url contains /home }
+      sso: [open-login, submit, expect-screen home]
+      service: [mint-token]
+scenarios:
+  - id: A-01
+    behaviour: a saved note appears in the list
+    reach: be-only
+    setup:
+      - db: { target: scn_main }
+      - login: { recipe: sso, id: u1, stop_at: home }
+    expected: the list shows the note
+    priority: P1
+    status: open
+  - id: A-02
+    behaviour: |
+      a deleted note
+      leaves the list
+    reach: browser
+    setup: []
+    expected: OPEN
+    priority: P2
+    status: open
+  - id: B-01
+    behaviour: the export stays closed
+    reach: ops
+    setup: []
+    expected: the export is refused
+    priority: P3
+    status: verified

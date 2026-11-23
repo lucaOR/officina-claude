@@ -1,0 +1,13 @@
+{
+  "files": ["errors.mjs", "hash.mjs", "matrix.mjs", "paths.mjs", "result.mjs", "config.mjs", "ext.mjs", "registry.mjs", "observe.mjs", "fault.mjs", "scenario.mjs", "reset.mjs", "run.mjs", "lint.mjs", "selftest.mjs", "check.mjs", "query.mjs"],
+  "exports": {
+    "hash.mjs": ["compiledFrom"],
+    "registry.mjs": ["loadRegistry"],
+    "observe.mjs": ["scnFetch"],
+    "fault.mjs": ["race"],
+    "scenario.mjs": ["scenario", "fail", "blocked", "inconclusive", "Ko", "Blocked", "Inconclusive"],
+    "reset.mjs": ["reset"]
+  },
+  "tests": ["matrix.test.mjs", "result.test.mjs", "config.test.mjs", "ext.test.mjs", "registry.test.mjs", "registry-loader.test.mjs", "hash.test.mjs", "observe.test.mjs", "fault.test.mjs", "classification.test.mjs", "scenario.test.mjs", "reset.test.mjs", "run.test.mjs", "lint.test.mjs", "selftest.test.mjs", "check.test.mjs", "query.test.mjs", "cli-guard.test.mjs"],
+  "npm": { "yaml": "2.9.1" }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "session",
+  "version": "0.1.0",
+  "description": "Interview-first idea refinement (/refine) and session handoff notes that let /clear replace /compact (/handoff), with the pivot gate that checks each note against the work item's intent file.",
+  "author": {
+    "name": "Luca Oronzo"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "token-hygiene",
+  "version": "0.1.0",
+  "description": "Per-session token metrics recorded at SessionEnd, plus /token-dashboard to chart consumption, burn rate and cache behaviour.",
+  "author": {
+    "name": "Luca Oronzo"
+  }
+}

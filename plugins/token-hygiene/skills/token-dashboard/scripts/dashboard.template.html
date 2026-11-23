@@ -1,0 +1,1098 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Title stays generation-agnostic: the build script substitutes only the data marker further
+     down, so a hardcoded generation here goes stale the next time the ledger is regenerated.
+     The active generation is written into the title and the page body at runtime, from the data.
+     Do not write that marker's literal text anywhere above it -- the substitution replaces the
+     FIRST occurrence, so an earlier copy swallows the payload and leaves the real one inert. -->
+<title>Token consumption</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; }
+  .viz-root {
+    color-scheme: light;
+    --surface-1: #fcfcfb;
+    --plane: #f9f9f7;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #898781;
+    --grid: #e1e0d9;
+    --axis: #c3c2b7;
+    --border: rgba(11,11,11,0.10);
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+    --series-3: #1baf7a;
+    --series-4: #eda100;
+    /* Validated against both surfaces with the dataviz validator rather than picked by eye; the
+       same step clears the lightness band, the chroma floor and 3:1 contrast in light AND dark,
+       so it is deliberately not flipped per mode. See BRK_KINDS for why it sits where it does. */
+    --series-5: #a8459f;
+    /* Slot 6, likewise validated rather than eyeballed and likewise mode-invariant. It is the only
+       sixth hue on this wheel that adds NO new normal-vision failure: the worst all-pairs pair stays
+       the pre-existing amber/orange one. Its cost is a protan-CVD collision with orange, which is
+       why the legend order keeps the two apart. */
+    --series-6: #008300;
+    --ramp-1: #cde2fb; --ramp-2: #b7d3f6; --ramp-3: #9ec5f4; --ramp-4: #86b6ef;
+    --ramp-5: #6da7ec; --ramp-6: #3987e5; --ramp-7: #256abf; --ramp-8: #184f95;
+    background: var(--plane);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    min-height: 100vh;
+    padding: 32px 24px 64px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1: #1a1a19;
+      --plane: #0d0d0d;
+      --text-primary: #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted: #898781;
+      --grid: #2c2c2a;
+      --axis: #383835;
+      --border: rgba(255,255,255,0.10);
+      --series-1: #3987e5;
+      --series-2: #d95926;
+      --series-3: #199e70;
+      --series-4: #c98500;
+      --series-5: #a8459f;
+    /* Slot 6, likewise validated rather than eyeballed and likewise mode-invariant. It is the only
+       sixth hue on this wheel that adds NO new normal-vision failure: the worst all-pairs pair stays
+       the pre-existing amber/orange one. Its cost is a protan-CVD collision with orange, which is
+       why the legend order keeps the two apart. */
+    --series-6: #008300;
+      --ramp-1: #0d366b; --ramp-2: #104281; --ramp-3: #184f95; --ramp-4: #256abf;
+      --ramp-5: #2a78d6; --ramp-6: #3987e5; --ramp-7: #5598e7; --ramp-8: #86b6ef;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1: #1a1a19;
+    --plane: #0d0d0d;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255,255,255,0.10);
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --series-5: #a8459f;
+    /* Slot 6, likewise validated rather than eyeballed and likewise mode-invariant. It is the only
+       sixth hue on this wheel that adds NO new normal-vision failure: the worst all-pairs pair stays
+       the pre-existing amber/orange one. Its cost is a protan-CVD collision with orange, which is
+       why the legend order keeps the two apart. */
+    --series-6: #008300;
+    --ramp-1: #0d366b; --ramp-2: #104281; --ramp-3: #184f95; --ramp-4: #256abf;
+    --ramp-5: #2a78d6; --ramp-6: #3987e5; --ramp-7: #5598e7; --ramp-8: #86b6ef;
+  }
+
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  code { font-size: 0.94em; overflow-wrap: anywhere; }
+  header.page { margin-bottom: 28px; }
+  h1 { font-size: 20px; font-weight: 600; margin: 0 0 6px; letter-spacing: -0.01em; }
+  .sub { font-size: 13px; color: var(--text-secondary); margin: 0; line-height: 1.5; }
+
+  .hero { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin: 24px 0 20px; }
+  .hero .fig { font-size: 56px; font-weight: 600; line-height: 1; letter-spacing: -0.02em; }
+  .hero .cap { font-size: 13px; color: var(--text-secondary); }
+
+  .kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 24px; }
+  @media (min-width: 620px) { .kpis { grid-template-columns: repeat(4, 1fr); } }
+  .tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .tile .lbl { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+  .tile .val { font-size: 24px; font-weight: 600; line-height: 1.1; letter-spacing: -0.01em; }
+  .tile .note { font-size: 11px; color: var(--text-muted); margin-top: 5px; }
+
+  .panel { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 18px 18px 14px; margin-bottom: 18px; }
+  .panel h2 { font-size: 14px; font-weight: 600; margin: 0 0 2px; }
+  .panel .desc { font-size: 12px; color: var(--text-secondary); margin: 0 0 14px; line-height: 1.5; }
+  .grid2 { display: grid; grid-template-columns: 1fr; gap: 18px; }
+  @media (min-width: 860px) { .grid2 { grid-template-columns: 1fr 1fr; } .grid2 .panel { margin-bottom: 0; } }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 0 0 10px; font-size: 12px; color: var(--text-secondary); }
+  .legend span.k { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  .heatlegend { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 11px; color: var(--text-muted); }
+  .heatlegend .ramp { display: inline-flex; gap: 2px; }
+  .heatlegend .ramp i { width: 16px; height: 12px; border-radius: 2px; display: inline-block; }
+
+  .scroll { overflow-x: auto; }
+  svg { display: block; }
+  svg text { font-family: inherit; }
+
+  .tip {
+    position: fixed; pointer-events: none; z-index: 50; opacity: 0;
+    transition: opacity .08s linear;
+    background: var(--surface-1); color: var(--text-primary);
+    border: 1px solid var(--border); border-radius: 8px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+    padding: 9px 11px; font-size: 12px; line-height: 1.55; max-width: 280px;
+  }
+  .tip b { font-weight: 600; }
+  .tip .row { display: flex; justify-content: space-between; gap: 18px; color: var(--text-secondary); }
+  .tip .row b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+  .tip .hd { font-weight: 600; margin-bottom: 4px; }
+
+  details.table { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; }
+  details.table summary { font-size: 13px; font-weight: 600; cursor: pointer; }
+  table { border-collapse: collapse; width: 100%; margin-top: 14px; font-size: 12px; font-variant-numeric: tabular-nums; }
+  th, td { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--text-secondary); font-weight: 600; }
+  tfoot td { font-weight: 600; border-bottom: none; }
+
+  footer.notes { margin-top: 22px; font-size: 12px; color: var(--text-secondary); line-height: 1.65; }
+  footer.notes h3 { font-size: 12px; margin: 0 0 6px; color: var(--text-primary); }
+  footer.notes ul { margin: 0; padding-left: 18px; }
+
+  .filterbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 0 0 20px; padding: 12px 14px; background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; }
+  .fb-presets { display: flex; gap: 6px; }
+  .fb-presets button { font: inherit; font-size: 12px; padding: 5px 10px; border-radius: 7px; border: 1px solid var(--border); background: var(--plane); color: var(--text-primary); cursor: pointer; }
+  .fb-presets button.active { background: var(--series-1); border-color: var(--series-1); color: #fff; }
+  .fb-range { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-secondary); }
+  .fb-range label { display: flex; align-items: center; gap: 5px; }
+  .fb-range input[type=date] { font: inherit; font-size: 12px; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--border); background: var(--plane); color: var(--text-primary); color-scheme: light dark; }
+  .fb-reset { font: inherit; font-size: 12px; padding: 5px 10px; border-radius: 7px; border: 1px solid var(--border); background: var(--plane); color: var(--text-secondary); cursor: pointer; }
+  .fb-status { font-size: 12px; color: var(--text-muted); margin-left: auto; }
+</style>
+</head>
+<body>
+<div class="viz-root">
+<div class="wrap">
+
+  <header class="page">
+    <h1>Token consumption — <span id="span-title"></span></h1>
+    <p class="sub" id="page-sub"></p>
+  </header>
+
+  <div class="filterbar" id="filterbar">
+    <div class="fb-presets" id="fb-presets"></div>
+    <div class="fb-range">
+      <label>From <input type="date" id="fb-from"></label>
+      <label>To <input type="date" id="fb-to"></label>
+      <button type="button" class="fb-reset" id="fb-reset">Reset</button>
+    </div>
+    <div class="fb-status" id="fb-status"></div>
+  </div>
+
+  <div class="hero">
+    <div class="fig" id="hero-fig"></div>
+    <div class="cap" id="hero-cap"></div>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="panel">
+    <h2>Billed tokens per day</h2>
+    <p class="desc">Raw cap consumption. Idle days are left empty rather than dropped, so gaps in the working rhythm stay visible.</p>
+    <div id="c-daily"></div>
+  </div>
+
+  <div class="grid2" style="margin-bottom:18px">
+    <div class="panel">
+      <h2>Burn rate — fresh tokens per active minute</h2>
+      <p class="desc">Fresh = input + cache creation + output, i.e. everything that is not a cache replay. Rate, not count, because the usage cap is a rolling-time-window limit. Line breaks on idle days.</p>
+      <div id="c-rate"></div>
+    </div>
+    <div class="panel">
+      <h2>Billed tokens by type</h2>
+      <p class="desc">Cache replay dominates: nearly every billed token is the resident context being re-read on each response.</p>
+      <div class="legend" id="l-type"></div>
+      <div id="c-type"></div>
+      <p class="desc" style="margin:12px 0 0" id="type-note"></p>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Where the tokens go — by activity class</h2>
+    <p class="desc">Every billed token attributed to the turn that caused it. <b>investigate</b> = Read/Grep/Glob/Bash/Agent/WebFetch turns · <b>carry</b> = ambient scaffolding (system prompt, tool defs, CLAUDE.md, compaction summaries, typed text) · <b>reason</b> = no-tool thinking turns · <b>author</b> = Edit/Write turns · <b>delegate</b> = work done inside a subagent or workflow agent, billed to the same cap but to its own context. Output and ingest are exact per turn; the replay split is modelled by class residency.</p>
+    <div class="legend" id="l-class"></div>
+    <div id="c-class-total"></div>
+    <div id="c-class-daily" style="margin-top:18px"></div>
+  </div>
+
+  <div class="panel">
+    <h2>When the burn happens</h2>
+    <p class="desc">Billed tokens per hour of local day. Darker means heavier. Empty cells are hours with no recorded activity.</p>
+    <div class="scroll"><div id="c-heat"></div></div>
+    <div id="c-heat-legend" class="heatlegend" style="margin-top:10px"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Cost per turn against resident context</h2>
+    <p class="desc" id="scatter-desc"></p>
+    <div id="c-scatter"></div>
+  </div>
+
+  <div class="panel" id="p-turn-scatter" hidden>
+    <h2>Model time against output volume</h2>
+    <p class="desc" id="turn-scatter-desc"></p>
+    <div class="legend" id="l-turn-class"></div>
+    <div id="c-turn-scatter"></div>
+  </div>
+
+  <div class="panel" id="p-turn-duration" hidden>
+    <h2>Turn length by activity class</h2>
+    <p class="desc" id="turn-duration-desc"></p>
+    <div id="c-turn-duration"></div>
+  </div>
+
+  <div class="panel" id="p-class-latency" hidden>
+    <h2>Model time vs tool wait, by activity class</h2>
+    <p class="desc" id="class-latency-desc"></p>
+    <div class="legend" id="l-latency"></div>
+    <div id="c-class-latency"></div>
+  </div>
+
+  <div class="panel" id="p-class-interrupt" hidden>
+    <h2>Interrupt rate by activity class</h2>
+    <p class="desc" id="class-interrupt-desc"></p>
+    <div id="c-class-interrupt"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Where the cache writes went</h2>
+    <p class="desc" id="brk-desc"></p>
+    <div class="legend" id="l-brk"></div>
+    <div id="c-brk"></div>
+    <div class="scroll" style="margin-top:18px"><div id="t-brk"></div></div>
+  </div>
+
+  <div class="panel" id="p-sub" hidden>
+    <h2>Delegated work — subagents and workflow agents</h2>
+    <p class="desc" id="sub-desc"></p>
+    <div class="scroll"><div id="t-sub"></div></div>
+  </div>
+
+  <details class="table">
+    <summary>Table view — daily figures</summary>
+    <div class="scroll"><div id="t-daily"></div></div>
+  </details>
+
+  <footer class="notes">
+    <h3>Data notes</h3>
+    <ul>
+      <li id="src-note"></li>
+      <li>The current generation counts one API response once: transcript records are grouped by <code>message.id</code>, and a response is closed only by a new id, a compaction boundary, or end of transcript. Older generations are frozen and must never be summed with this one — <code>.v2</code> also split a response whenever a parallel tool call's <code>tool_result</code> landed between its records (+6.3% billed, +8.3% responses), and the unsuffixed legacy CSVs double-count ~2.1x.</li>
+      <li>A <em>turn</em> is one assistant API response, not one user message; each tool round-trip is its own turn.</li>
+      <li>The per-class split of cache replay is a residency heuristic — the transcript does not tag which cached bytes belong to which class. Output and cache-creation attribution is exact, and the replay total is exact; only its division across classes is modelled.</li>
+      <li>Scope is this project directory only. Sessions predating the hook, or whose transcripts rotated out before backfill, are absent.</li>
+      <li id="gen-note"></li>
+    </ul>
+  </footer>
+
+</div>
+<!-- inside .viz-root: the theme custom properties are scoped there, so a tooltip
+     hoisted out of it would render with unresolved var() colors. -->
+<div class="tip" id="tip"></div>
+</div>
+
+<script>
+const DATA = /*__DATA__*/;
+
+/* ---------- helpers ---------- */
+const NS = 'http://www.w3.org/2000/svg';
+const root = document.querySelector('.viz-root');
+const cssv = n => getComputedStyle(root).getPropertyValue(n).trim();
+const CLASSES = [
+  { k: 'investigate', label: 'investigate', slot: '--series-1' },
+  { k: 'carry',       label: 'carry',       slot: '--series-2' },
+  { k: 'reason',      label: 'reason',      slot: '--series-3' },
+  { k: 'author',      label: 'author',      slot: '--series-4' },
+  { k: 'delegate',    label: 'delegate',    slot: '--series-5' },
+];
+const TYPES = [
+  { k: 'cache_read',     label: 'cache replay',   slot: '--series-1' },
+  { k: 'cache_creation', label: 'cache creation', slot: '--series-2' },
+  { k: 'io',             label: 'input + output', slot: '--series-3' },
+];
+// Large cache writes, ordered avoidable-last so the eye lands on the actionable bucket. Order WITHIN
+// the unavoidable group is presentational and is chosen to maximise adjacent separation, since the
+// stacked bar puts neighbours in contact. Two constraints drive the sequence. Compaction-rebuild
+// orange and cache-expiry amber fail the validator's normal-vision floor as neighbours (ΔE 13.7
+// light, 10.6 dark, against a floor of 15), so something must sit between them -- cold-boot aqua
+// does it here. Growth green collides with that same orange under protan simulation, so it sits at
+// the far end, touching only magenta and break blue. Every adjacent pair then passes both modes with
+// no warning. They do still collide when the legend is read as a WHOLE: an all-pairs failure that
+// predates this series and is fixable only by re-stepping one of the two warm hues, which would
+// repaint history. Six categorical slots cannot all separate on one wheel, which is why the panel
+// carries a legend and a full table rather than relying on colour alone.
+const BRK_KINDS = [
+  { k: 'compact', label: 'compaction rebuild', slot: '--series-2' },
+  { k: 'cold',    label: 'cold boot',          slot: '--series-3' },
+  { k: 'ttl',     label: 'cache expiry',       slot: '--series-4' },
+  { k: 'retry',   label: 'failed-request retry', slot: '--series-5' },
+  { k: 'growth',  label: 'prefix growth',      slot: '--series-6' },
+  { k: 'break',   label: 'mid-session break',  slot: '--series-1' },
+];
+const LATENCY_SERIES = [
+  { label: 'model time', slot: '--series-1' },
+  { label: 'tool wait',  slot: '--series-2' },
+];
+
+function el(tag, attrs, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+function fmt(n) {
+  const a = Math.abs(n);
+  if (a >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+  if (a >= 1e6) return (n / 1e6).toFixed(a >= 1e7 ? 0 : 1) + 'M';
+  if (a >= 1e3) return (n / 1e3).toFixed(a >= 1e4 ? 0 : 1) + 'K';
+  return String(Math.round(n));
+}
+const num = n => Math.round(n).toLocaleString('en-US');
+const pct = (a, b) => b ? (100 * a / b).toFixed(1) + '%' : '0%';
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function dLabel(iso) { return Number(iso.slice(8)) + ' ' + MON[Number(iso.slice(5, 7)) - 1]; }
+function dLong(iso) {
+  const dt = new Date(iso + 'T00:00:00Z');
+  return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dt.getUTCDay()] + ' ' + dLabel(iso);
+}
+function niceMax(v, steps) {
+  const raw = v / steps, mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= raw) || 10 * mag;
+  return step * steps;
+}
+function tickStep(n, pw) { return Math.max(1, Math.ceil(n / Math.max(2, Math.floor(pw / 52)))); }
+function barPath(x, y, w, h, r) {
+  r = Math.max(0, Math.min(r, w / 2, h));
+  return `M${x},${y + h} L${x},${y + r} Q${x},${y} ${x + r},${y} L${x + w - r},${y} Q${x + w},${y} ${x + w},${y + r} L${x + w},${y + h} Z`;
+}
+
+/* ---------- tooltip ---------- */
+const tip = document.getElementById('tip');
+function tipShow(html, ev) {
+  tip.innerHTML = html;
+  tip.style.opacity = '1';
+  const pad = 14, r = tip.getBoundingClientRect();
+  let x = ev.clientX + pad, y = ev.clientY + pad;
+  if (x + r.width > window.innerWidth - 8) x = ev.clientX - r.width - pad;
+  if (y + r.height > window.innerHeight - 8) y = ev.clientY - r.height - pad;
+  tip.style.left = Math.max(8, x) + 'px';
+  tip.style.top = Math.max(8, y) + 'px';
+}
+function tipHide() { tip.style.opacity = '0'; }
+function rows(pairs) {
+  return pairs.map(([k, v]) => `<div class="row"><span>${k}</span><b>${v}</b></div>`).join('');
+}
+function hoverable(node, html) {
+  node.addEventListener('mousemove', e => tipShow(html, e));
+  node.addEventListener('mouseleave', tipHide);
+}
+
+/* ---------- axis pieces ---------- */
+function yAxis(g, y, max, W, ticks, fmtFn) {
+  for (let i = 0; i <= ticks; i++) {
+    const v = max * i / ticks, py = y(v);
+    g.appendChild(el('line', { x1: 0, x2: W, y1: py, y2: py, stroke: i ? cssv('--grid') : cssv('--axis'), 'stroke-width': 1 }));
+    g.appendChild(el('text', { x: -10, y: py + 4, 'text-anchor': 'end', fill: cssv('--text-muted'), 'font-size': 11, style: 'font-variant-numeric:tabular-nums' }, (fmtFn || fmt)(v)));
+  }
+}
+function legendInto(node, items) {
+  node.innerHTML = items.map(i => `<span class="k"><i style="background:${cssv(i.slot)}"></i>${i.label}</span>`).join('');
+}
+
+/* ---------- box-plot + Wilson-CI stats ---------- */
+function boxStats(arr) {
+  const a = arr.slice().sort((x, y) => x - y), n = a.length;
+  const at = p => a[Math.round(p * (n - 1))];
+  const q1 = at(0.25), med = at(0.5), q3 = at(0.75), iqr = q3 - q1;
+  const fenceLo = q1 - 1.5 * iqr, fenceHi = q3 + 1.5 * iqr;
+  const inFence = a.filter(v => v >= fenceLo && v <= fenceHi);
+  const lo = inFence.length ? inFence[0] : q1, hi = inFence.length ? inFence[inFence.length - 1] : q3;
+  const outliers = a.filter(v => v < fenceLo || v > fenceHi);
+  return { n, q1, med, q3, lo, hi, min: a[0], max: a[n - 1], outliers };
+}
+function logYAxis(g, y, ylo, yhi, W, fmtFn) {
+  for (let v = ylo; v <= yhi * 1.0001; v *= 10) {
+    g.appendChild(el('line', { x1: 0, x2: W, y1: y(v), y2: y(v), stroke: v === ylo ? cssv('--axis') : cssv('--grid'), 'stroke-width': 1 }));
+    g.appendChild(el('text', { x: -10, y: y(v) + 4, 'text-anchor': 'end', fill: cssv('--text-muted'), 'font-size': 11 }, (fmtFn || fmt)(v)));
+  }
+}
+function wilson95(ni, n) {
+  if (!n) return { p: 0, lo: 0, hi: 0 };
+  const z = 1.96, p = ni / n, denom = 1 + z * z / n;
+  const center = p + z * z / (2 * n), spread = z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n));
+  return { p, lo: Math.max(0, (center - spread) / denom), hi: Math.min(1, (center + spread) / denom) };
+}
+// Deterministic pseudo-random offset in (-width/2, width/2), keyed on a point's index within its
+// own series -- not Math.random() -- so the jitter stays put across a resize/theme redraw, which
+// calls renderAll() again over the exact same classLatency arrays without refiltering them.
+function jitterX(i, n, width) {
+  const s = Math.sin(i * 12.9898 + n * 78.233) * 43758.5453;
+  return (s - Math.floor(s) - 0.5) * width;
+}
+function drawPointCloud(g, x, w, y, vals, slot) {
+  const color = cssv(slot), jw = w * 0.45, cx = x + w / 2;
+  vals.forEach((v, i) => g.appendChild(el('circle', { cx: cx + jitterX(i, vals.length, jw), cy: y(v), r: 2.5, fill: color, 'fill-opacity': 0.35 })));
+}
+// Drawn after drawPointCloud, over the same band: box = IQR, line = median, whisker = fenced
+// range. Each stroke gets a near-opaque --plane-colored halo first, so the outline and median
+// stay legible against a dense point cloud instead of the dots swallowing a thin colored line.
+function drawBoxPlot(g, x, w, y, s, slot) {
+  const color = cssv(slot), plane = cssv('--plane'), cx = x + w / 2, bw = w * 0.55;
+  const rectY = y(s.q3), rectH = Math.max(1, y(s.q1) - y(s.q3));
+  g.appendChild(el('line', { x1: cx, x2: cx, y1: y(s.lo), y2: y(s.hi), stroke: plane, 'stroke-width': 4, 'stroke-opacity': 0.85 }));
+  g.appendChild(el('line', { x1: cx, x2: cx, y1: y(s.lo), y2: y(s.hi), stroke: color, 'stroke-width': 1.5 }));
+  g.appendChild(el('rect', {
+    x: cx - bw / 2, y: rectY, width: bw, height: rectH,
+    fill: plane, 'fill-opacity': 0.88, stroke: 'none',
+  }));
+  g.appendChild(el('rect', {
+    x: cx - bw / 2, y: rectY, width: bw, height: rectH,
+    fill: 'none', stroke: color, 'stroke-width': 1.5,
+  }));
+  g.appendChild(el('line', { x1: cx - bw / 2, x2: cx + bw / 2, y1: y(s.med), y2: y(s.med), stroke: plane, 'stroke-width': 5, 'stroke-opacity': 0.85 }));
+  g.appendChild(el('line', { x1: cx - bw / 2, x2: cx + bw / 2, y1: y(s.med), y2: y(s.med), stroke: color, 'stroke-width': 2 }));
+}
+
+/* ---------- data prep + time filter ----------
+   T/days/actDays/typeTotals/classTot/actTotal/segPts/grid are the "current
+   view" — recomputed by computeView() from the immutable ALL_DAYS/DATA.segPts/
+   DATA.grid whenever the filter bar changes. Every chart function below reads
+   these as closures, so reassigning them and calling renderAll() again is
+   enough to repaint the whole page for a new range — no chart takes data as
+   an argument. */
+let T, days, actDays, typeTotals, classTot, actTotal, segPts, grid, brk, brkTop, subTop, turnPts, latencyPts, classLatency;
+const ALL_DAYS = DATA.days;
+const ALL_TURN_PTS = DATA.turnPts || [];
+const ALL_LATENCY_PTS = DATA.latencyPts || [];
+const DATA_FIRST = ALL_DAYS[0].date, DATA_LAST = ALL_DAYS[ALL_DAYS.length - 1].date;
+const sum = (arr, k) => arr.reduce((a, r) => a + (Number(r[k]) || 0), 0);
+
+function computeView(from, to) {
+  days = ALL_DAYS.filter(d => d.date >= from && d.date <= to);
+  actDays = days.filter(d => d.billed > 0);
+  const turns = sum(days, 'turns'), active_min = sum(days, 'active_min');
+  const billed = sum(days, 'billed'), fresh = sum(days, 'fresh');
+  T = {
+    first: from, last: to,
+    days: actDays.length, turns, sessions: sum(days, 'sessions'),
+    billed, fresh, output: sum(days, 'output'),
+    input: sum(days, 'input'), cache_read: sum(days, 'cache_read'), cache_creation: sum(days, 'cache_creation'),
+    active_min, compactions: sum(days, 'compactions'),
+    fresh_per_min: active_min ? fresh / active_min : 0,
+    billed_per_turn: turns ? billed / turns : 0,
+    // Delegated share, already inside `billed`/`turns` -- broken out, never added.
+    sub_billed: sum(days, 'sub_billed'), sub_turns: sum(days, 'sub_turns'), sub_agents: sum(days, 'sub_agents'),
+  };
+  typeTotals = { cache_read: T.cache_read, cache_creation: T.cache_creation, io: T.input + T.output };
+  classTot = { investigate: 0, carry: 0, reason: 0, author: 0, delegate: 0 };
+  for (const d of days) for (const k in classTot) classTot[k] += d.cls[k] || 0;
+  actTotal = Object.values(classTot).reduce((a, b) => a + b, 0);
+  segPts = DATA.segPts.filter(p => p.date >= from && p.date <= to);
+  turnPts = ALL_TURN_PTS.filter(p => p.date >= from && p.date <= to);
+  latencyPts = ALL_LATENCY_PTS.filter(p => p.date >= from && p.date <= to);
+  classLatency = {};
+  CLASSES.forEach(c => { classLatency[c.k] = { n: 0, interrupted: 0, model_s: [], tool_wait_s: [], duration_s: [] }; });
+  for (const p of latencyPts) {
+    const b = classLatency[p.dominant_class];
+    if (!b) continue;
+    b.n++; b.interrupted += p.interrupted; b.model_s.push(p.model_s); b.tool_wait_s.push(p.tool_wait_s); b.duration_s.push(p.duration_s);
+  }
+  grid = Object.fromEntries(Object.entries(DATA.grid).filter(([d]) => d >= from && d <= to));
+  brk = { cold_n: 0, cold_cc: 0, compact_n: 0, compact_cc: 0, retry_n: 0, retry_cc: 0, ttl_n: 0, ttl_cc: 0, growth_n: 0, growth_cc: 0, break_n: 0, break_cc: 0, model_n: 0, full_n: 0 };
+  for (const d of days) for (const k in brk) brk[k] += (d.brk && d.brk[k]) || 0;
+  brkTop = (DATA.breakTop || []).filter(b => b.date >= from && b.date <= to);
+  subTop = ((DATA.delegation && DATA.delegation.top_agents) || []).filter(a => a.date >= from && a.date <= to);
+}
+
+/* ---------- header + hero + KPIs ---------- */
+function renderHeroKpis() {
+  document.getElementById('span-title').textContent = dLabel(T.first) + ' → ' + dLabel(T.last) + ' 2026';
+  document.getElementById('hero-fig').textContent = fmt(T.billed);
+  document.getElementById('hero-cap').innerHTML =
+    `billed tokens over ${T.days} active days (${days.length}-day span)<br>${num(T.turns)} assistant responses · ${T.sessions} sessions`;
+
+  const kpis = [
+    { lbl: 'Fresh tokens', val: fmt(T.fresh), note: pct(T.fresh, T.billed) + ' of billed — input + cache creation + output' },
+    { lbl: 'Cache replay', val: pct(T.cache_read, T.billed), note: fmt(T.cache_read) + ' re-read context' },
+    { lbl: 'Burn rate', val: num(T.fresh_per_min), note: 'fresh tokens / active minute, duration-weighted' },
+    { lbl: 'Per response', val: fmt(T.billed_per_turn), note: 'mean billed tokens per assistant response' },
+    { lbl: 'Active time', val: num(T.active_min / 60) + ' h', note: num(T.active_min) + ' minutes across ' + T.sessions + ' sessions' },
+    { lbl: 'Delegated', val: pct(T.sub_billed, T.billed),
+      note: fmt(T.sub_billed) + ' billed inside ' + num(T.sub_agents) + ' subagent runs · ' + num(T.sub_turns) + ' responses' },
+    { lbl: 'Compactions', val: num(T.compactions), note: num(segPts.length) + ' segments · ' + (T.sessions ? (T.compactions / T.sessions).toFixed(1) : '0') + ' per session' },
+    { lbl: 'Heaviest day', val: actDays.length ? fmt(actDays.reduce((a, b) => a.billed > b.billed ? a : b).billed) : '—', note: actDays.length ? dLong(actDays.reduce((a, b) => a.billed > b.billed ? a : b).date) : 'no activity in range' },
+    { lbl: 'Median day', val: actDays.length ? fmt(actDays.map(d => d.billed).sort((a, b) => a - b)[actDays.length >> 1]) : '—', note: 'across the ' + T.days + ' active days' },
+  ];
+  document.getElementById('kpis').innerHTML = kpis.map(k =>
+    `<div class="tile"><div class="lbl">${k.lbl}</div><div class="val">${k.val}</div><div class="note">${k.note}</div></div>`).join('');
+}
+
+/* ---------- chart: daily billed columns ---------- */
+function chartDaily(host) {
+  host.innerHTML = '';
+  const W = host.clientWidth, H = 260;
+  const m = { l: 52, r: 14, t: 22, b: 30 };
+  const pw = W - m.l - m.r, ph = H - m.t - m.b;
+  const svg = el('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img' });
+  const g = el('g', { transform: `translate(${m.l},${m.t})` });
+  const max = niceMax(Math.max(...days.map(d => d.billed)), 4);
+  const y = v => ph - (v / max) * ph;
+  yAxis(g, y, max, pw, 4);
+
+  const band = pw / days.length, bw = Math.min(24, band - 3);
+  const step = tickStep(days.length, pw);
+  const peak = days.reduce((a, b) => a.billed > b.billed ? a : b);
+  days.forEach((d, i) => {
+    const x = i * band + (band - bw) / 2;
+    if (d.billed > 0) {
+      const h = ph - y(d.billed);
+      g.appendChild(el('path', { d: barPath(x, y(d.billed), bw, h, 4), fill: cssv('--series-1') }));
+    }
+    const hit = el('rect', { x: i * band, y: 0, width: band, height: ph, fill: 'transparent' });
+    hoverable(hit, d.billed === 0
+      ? `<div class="hd">${dLong(d.date)}</div><div class="row"><span>no recorded activity</span></div>`
+      : `<div class="hd">${dLong(d.date)}</div>` + rows([
+          ['billed', num(d.billed)],
+          ['fresh', num(d.fresh)],
+          ['output', num(d.output)],
+          ['responses', num(d.turns)],
+          ['sessions', num(d.sessions)],
+          ['active', d.active_min.toFixed(0) + ' min'],
+          ['burn rate', num(d.fpm) + ' /min'],
+        ]));
+    g.appendChild(hit);
+    if (i % step === 0) g.appendChild(el('text', { x: i * band + band / 2, y: ph + 18, 'text-anchor': 'middle', fill: cssv('--text-muted'), 'font-size': 11 }, dLabel(d.date)));
+  });
+  const pi = days.indexOf(peak);
+  g.appendChild(el('text', { x: pi * band + band / 2, y: y(peak.billed) - 8, 'text-anchor': 'middle', fill: cssv('--text-primary'), 'font-size': 11, 'font-weight': 600 }, fmt(peak.billed)));
+  svg.appendChild(g);
+  host.appendChild(svg);
+}
+
+/* ---------- chart: burn rate line ---------- */
+function chartRate(host) {
+  host.innerHTML = '';
+  const W = host.clientWidth, H = 240;
+  const m = { l: 52, r: 42, t: 20, b: 30 };
+  const pw = W - m.l - m.r, ph = H - m.t - m.b;
+  const svg = el('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}` });
+  const g = el('g', { transform: `translate(${m.l},${m.t})` });
+  const max = niceMax(Math.max(1, ...days.map(d => d.fpm)), 4);
+  const y = v => ph - (v / max) * ph;
+  const xdenom = Math.max(1, days.length - 1);
+  const x = i => (pw / xdenom) * i;
+  yAxis(g, y, max, pw, 4, v => num(v));
+
+  let dstr = '', open = false;
+  days.forEach((d, i) => {
+    if (d.fpm > 0) { dstr += (open ? ' L' : ' M') + x(i) + ',' + y(d.fpm); open = true; }
+    else open = false;
+  });
+  g.appendChild(el('path', { d: dstr.trim(), fill: 'none', stroke: cssv('--series-1'), 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+
+  const rstep = tickStep(days.length, pw) * 2;
+  const peak = days.reduce((a, b) => a.fpm > b.fpm ? a : b);
+  days.forEach((d, i) => {
+    if (d.fpm > 0) {
+      g.appendChild(el('circle', { cx: x(i), cy: y(d.fpm), r: 4, fill: cssv('--series-1'), stroke: cssv('--surface-1'), 'stroke-width': 2 }));
+    }
+    const hit = el('rect', { x: x(i) - pw / xdenom / 2, y: 0, width: pw / xdenom, height: ph, fill: 'transparent' });
+    hoverable(hit, `<div class="hd">${dLong(d.date)}</div>` + (d.fpm ? rows([
+      ['burn rate', num(d.fpm) + ' /min'],
+      ['fresh', num(d.fresh)],
+      ['active', d.active_min.toFixed(0) + ' min'],
+      ['billed', num(d.billed)],
+    ]) : '<div class="row"><span>no recorded activity</span></div>'));
+    g.appendChild(hit);
+    if (i % rstep === 0) g.appendChild(el('text', { x: x(i), y: ph + 18, 'text-anchor': 'middle', fill: cssv('--text-muted'), 'font-size': 11 }, dLabel(d.date)));
+  });
+  const pi = days.indexOf(peak);
+  g.appendChild(el('text', { x: Math.min(x(pi) + 8, pw - 4), y: y(peak.fpm) - 8, 'text-anchor': pi > days.length - 6 ? 'end' : 'start', fill: cssv('--text-primary'), 'font-size': 11, 'font-weight': 600 }, num(peak.fpm) + ' /min'));
+  svg.appendChild(g);
+  host.appendChild(svg);
+}
+
+/* ---------- shared: 100% horizontal stacked bar ---------- */
+function stackedBar(host, series, height) {
+  host.innerHTML = '';
+  const W = host.clientWidth, H = height || 66;
+  const svg = el('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}` });
+  const total = series.reduce((a, s) => a + s.v, 0);
+  const gap = 2, bh = 30;
+  let x = 0;
+  series.forEach((s, i) => {
+    const w = Math.max(0, (s.v / total) * W - (i < series.length - 1 ? gap : 0));
+    const r = (i === 0 || i === series.length - 1) ? 4 : 0;
+    svg.appendChild(el('rect', { x, y: 0, width: w, height: bh, rx: r, fill: cssv(s.slot) }));
+    const label = s.label + ' ' + pct(s.v, total);
+    if (w > label.length * 6.6 + 16) {
+      svg.appendChild(el('text', { x: x + w / 2, y: bh / 2 + 4, 'text-anchor': 'middle', fill: '#ffffff', 'font-size': 12, 'font-weight': 600 }, label));
+    } else if (w > 8) {
+      svg.appendChild(el('text', { x: Math.min(x + w / 2, W - 4), y: bh + 18, 'text-anchor': 'middle', fill: cssv('--text-secondary'), 'font-size': 11 }, pct(s.v, total)));
+    }
+    const hit = el('rect', { x, y: 0, width: Math.max(w, 1), height: bh, fill: 'transparent' });
+    hoverable(hit, `<div class="hd">${s.label}</div>` + rows([['tokens', num(s.v)], ['share', pct(s.v, total)]]));
+    svg.appendChild(hit);
+    x += w + gap;
+  });
+  host.appendChild(svg);
+}
+
+/* ---------- chart: token type ---------- */
+function chartType(host) {
+  stackedBar(host, TYPES.map(t => ({ label: t.label, slot: t.slot, v: typeTotals[t.k] })), 60);
+}
+
+/* ---------- chart: class split ---------- */
+function chartClassTotal(host) {
+  stackedBar(host, CLASSES.map(c => ({ label: c.label, slot: c.slot, v: classTot[c.k] || 0 })), 60);
+}
+
+function chartClassDaily(host) {
+  host.innerHTML = '';
+  const W = host.clientWidth, H = 220;
+  const m = { l: 52, r: 14, t: 10, b: 30 };
+  const pw = W - m.l - m.r, ph = H - m.t - m.b;
+  const svg = el('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}` });
+  const g = el('g', { transform: `translate(${m.l},${m.t})` });
+  const y = v => ph - v * ph;
+  for (let i = 0; i <= 4; i++) {
+    const py = y(i / 4);
+    g.appendChild(el('line', { x1: 0, x2: pw, y1: py, y2: py, stroke: i ? cssv('--grid') : cssv('--axis'), 'stroke-width': 1 }));
+    g.appendChild(el('text', { x: -10, y: py + 4, 'text-anchor': 'end', fill: cssv('--text-muted'), 'font-size': 11 }, (i * 25) + '%'));
+  }
+  const band = pw / actDays.length, bw = Math.min(24, band - 3);
+  const cstep = tickStep(actDays.length, pw);
+  actDays.forEach((d, i) => {
+    const tot = CLASSES.reduce((a, c) => a + (d.cls[c.k] || 0), 0) || 1;
+    let acc = 0;
+    const x0 = i * band + (band - bw) / 2;
+    CLASSES.forEach((c, ci) => {
+      const share = (d.cls[c.k] || 0) / tot;
+      const h = share * ph - (ci < CLASSES.length - 1 ? 2 : 0);
+      if (h > 0.5) {
+        const yy = y(acc + share);
+        const isTop = ci === 0;
+        g.appendChild(el('path', { d: isTop ? barPath(x0, yy, bw, h, 4) : `M${x0},${yy} h${bw} v${h} h${-bw} Z`, fill: cssv(c.slot) }));
+      }
+      acc += share;
+    });
+    const hit = el('rect', { x: i * band, y: 0, width: band, height: ph, fill: 'transparent' });
+    hoverable(hit, `<div class="hd">${dLong(d.date)}</div>` + rows(
+      CLASSES.map(c => [c.label, pct(d.cls[c.k] || 0, tot)]).concat([['billed', num(d.billed)]])));
+    g.appendChild(hit);
+    if (i % cstep === 0) g.appendChild(el('text', { x: i * band + band / 2, y: ph + 18, 'text-anchor': 'middle', fill: cssv('--text-muted'), 'font-size': 11 }, dLabel(d.date)));
+  });
+  svg.appendChild(g);
+  host.appendChild(svg);
+}
+
+/* ---------- chart: hour heatmap ---------- */
+function chartHeat(host, legendHost) {
+  host.innerHTML = '';
+  const dates = Object.keys(grid).sort();
+  const cell = 22, gap = 2, labelW = 58, topH = 20;
+  const W = labelW + 24 * cell, H = topH + dates.length * cell + 6;
+  const svg = el('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, style: 'min-width:' + W + 'px' });
+  const max = Math.max(1, ...Object.values(grid).flat());
+  const ramp = [1, 2, 3, 4, 5, 6, 7, 8].map(i => cssv('--ramp-' + i));
+  const stepOf = v => ramp[Math.min(ramp.length - 1, Math.floor(Math.pow(v / max, 0.6) * ramp.length))];
+
+  for (let h = 0; h < 24; h += 3) {
+    svg.appendChild(el('text', { x: labelW + h * cell + cell / 2, y: 13, 'text-anchor': 'middle', fill: cssv('--text-muted'), 'font-size': 11 }, String(h).padStart(2, '0')));
+  }
+  dates.forEach((d, r) => {
+    svg.appendChild(el('text', { x: labelW - 10, y: topH + r * cell + cell / 2 + 4, 'text-anchor': 'end', fill: cssv('--text-muted'), 'font-size': 11 }, dLabel(d)));
+    for (let h = 0; h < 24; h++) {
+      const v = grid[d][h] || 0;
+      const rect = el('rect', {
+        x: labelW + h * cell, y: topH + r * cell, width: cell - gap, height: cell - gap, rx: 3,
+        fill: v > 0 ? stepOf(v) : 'transparent',
+        stroke: v > 0 ? 'none' : cssv('--grid'), 'stroke-width': 1,
+      });
+      hoverable(rect, `<div class="hd">${dLong(d)} · ${String(h).padStart(2, '0')}:00</div>` +
+        (v > 0 ? rows([['billed', num(v)]]) : '<div class="row"><span>no activity</span></div>'));
+      svg.appendChild(rect);
+    }
+  });
+  host.appendChild(svg);
+
+  legendHost.innerHTML =
+    '<span class="k">lighter</span>' +
+    '<span class="ramp">' + ramp.map(c => `<i style="background:${c}"></i>`).join('') + '</span>' +
+    `<span class="k">heavier — up to ${fmt(max)} billed in a single hour</span>`;
+}
+
+/* ---------- chart: scatter ---------- */
+function chartScatter(host) {
+  host.innerHTML = '';
+  const W = host.clientWidth, H = 312;
+  const m = { l: 62, r: 16, t: 30, b: 44 };
+  const pw = W - m.l - m.r, ph = H - m.t - m.b;
+  const svg = el('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}` });
+  const g = el('g', { transform: `translate(${m.l},${m.t})` });
+  const xmax = niceMax(Math.max(1, ...segPts.map(p => p.ctx)), 4);
+  const ymax = niceMax(Math.max(1, ...segPts.map(p => p.per_turn)), 4);
+  const X = v => (v / xmax) * pw, Y = v => ph - (v / ymax) * ph;
+  yAxis(g, Y, ymax, pw, 4);
+  for (let i = 0; i <= 4; i++) {
+    const v = xmax * i / 4;
+    g.appendChild(el('text', { x: X(v), y: ph + 18, 'text-anchor': 'middle', fill: cssv('--text-muted'), 'font-size': 11 }, fmt(v)));
+  }
+  g.appendChild(el('text', { x: pw / 2, y: ph + 38, 'text-anchor': 'middle', fill: cssv('--text-secondary'), 'font-size': 11 }, 'peak resident context in the segment (tokens)'));
+  g.appendChild(el('text', { x: -56, y: -14, fill: cssv('--text-secondary'), 'font-size': 11 }, 'billed tokens / response'));
+
+  segPts.forEach(p => {
+    const c = el('circle', {
+      cx: X(p.ctx), cy: Y(p.per_turn), r: 4,
+      fill: cssv('--series-1'), 'fill-opacity': 0.75,
+      stroke: cssv('--surface-1'), 'stroke-width': 2,
+    });
+    hoverable(c, `<div class="hd">${dLong(p.date)} · segment ${p.seg}</div>` + rows([
+      ['peak context', num(p.ctx)],
+      ['billed / response', num(p.per_turn)],
+      ['responses', num(p.turns)],
+    ]));
+    g.appendChild(c);
+  });
+  svg.appendChild(g);
+  host.appendChild(svg);
+}
+
+/* ---------- chart: turn scatter (log-log) ---------- */
+function chartTurnScatter(host) {
+  const panel = document.getElementById('p-turn-scatter');
+  if (!turnPts.length) { if (panel) panel.hidden = true; return; }
+  if (panel) panel.hidden = false;
+  host.innerHTML = '';
+  const W = host.clientWidth, H = 312;
+  const m = { l: 62, r: 16, t: 30, b: 44 };
+  const pw = W - m.l - m.r, ph = H - m.t - m.b;
+  const svg = el('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}` });
+  const g = el('g', { transform: `translate(${m.l},${m.t})` });
+
+  const xs = turnPts.map(p => p.model_s), ys = turnPts.map(p => p.output_tokens);
+  const xlo = Math.pow(10, Math.floor(Math.log10(Math.min(...xs))));
+  let xhi = Math.pow(10, Math.ceil(Math.log10(Math.max(...xs))));
+  if (xhi <= xlo) xhi = xlo * 10;
+  const ylo = Math.pow(10, Math.floor(Math.log10(Math.min(...ys))));
+  let yhi = Math.pow(10, Math.ceil(Math.log10(Math.max(...ys))));
+  if (yhi <= ylo) yhi = ylo * 10;
+  const X = v => Math.log10(v / xlo) / Math.log10(xhi / xlo) * pw;
+  const Y = v => ph - Math.log10(v / ylo) / Math.log10(yhi / ylo) * ph;
+
+  for (let v = xlo; v <= xhi * 1.0001; v *= 10) {
+    g.appendChild(el('line', { x1: X(v), x2: X(v), y1: 0, y2: ph, stroke: cssv('--grid'), 'stroke-width': 1 }));
+    g.appendChild(el('text', { x: X(v), y: ph + 18, 'text-anchor': 'middle', fill: cssv('--text-muted'), 'font-size': 11 }, fmt(v)));
+  }
+  for (let v = ylo; v <= yhi * 1.0001; v *= 10) {
+    g.appendChild(el('line', { x1: 0, x2: pw, y1: Y(v), y2: Y(v), stroke: v === ylo ? cssv('--axis') : cssv('--grid'), 'stroke-width': 1 }));
+    g.appendChild(el('text', { x: -10, y: Y(v) + 4, 'text-anchor': 'end', fill: cssv('--text-muted'), 'font-size': 11 }, fmt(v)));
+  }
+  g.appendChild(el('text', { x: pw / 2, y: ph + 38, 'text-anchor': 'middle', fill: cssv('--text-secondary'), 'font-size': 11 }, 'model time per response, log scale (s)'));
+  g.appendChild(el('text', { x: -56, y: -14, fill: cssv('--text-secondary'), 'font-size': 11 }, 'output tokens, log scale'));
+
+  turnPts.forEach(p => {
+    const cls = CLASSES.find(c => c.k === p.dominant_class);
+    const c = el('circle', {
+      cx: X(p.model_s), cy: Y(p.output_tokens), r: 4,
+      fill: cssv(cls ? cls.slot : '--text-muted'), 'fill-opacity': 0.6,
+      stroke: cssv('--surface-1'), 'stroke-width': 1,
+    });
+    hoverable(c, `<div class="hd">${dLong(p.date)} · <code>${p.session}</code> turn ${p.seq}</div>` + rows([
+      ['class', cls ? cls.label : (p.dominant_class || '—')],
+      ['model time', p.model_s.toFixed(1) + 's'],
+      ['output tokens', num(p.output_tokens)],
+    ]));
+    g.appendChild(c);
+  });
+  svg.appendChild(g);
+  host.appendChild(svg);
+}
+
+/* ---------- chart: turn length by class ---------- */
+function chartTurnDuration(host) {
+  const panel = document.getElementById('p-turn-duration');
+  const rows_ = CLASSES.filter(c => classLatency[c.k].n > 0)
+    .map(c => ({ c, vals: classLatency[c.k].duration_s, s: boxStats(classLatency[c.k].duration_s), n: classLatency[c.k].n }));
+  if (!rows_.length) { if (panel) panel.hidden = true; return; }
+  if (panel) panel.hidden = false;
+  host.innerHTML = '';
+  const W = host.clientWidth, H = 280;
+  const m = { l: 56, r: 14, t: 10, b: 30 };
+  const pw = W - m.l - m.r, ph = H - m.t - m.b;
+  const svg = el('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}` });
+  const g = el('g', { transform: `translate(${m.l},${m.t})` });
+  const mins = rows_.map(r => r.s.min).filter(v => v > 0);
+  const ylo = Math.pow(10, Math.floor(Math.log10(mins.length ? Math.min(...mins) : 0.1)));
+  let yhi = Math.pow(10, Math.ceil(Math.log10(Math.max(1, ...rows_.map(r => r.s.max)))));
+  if (yhi <= ylo) yhi = ylo * 10;
+  const y = v => ph - Math.log10(Math.max(v, ylo) / ylo) / Math.log10(yhi / ylo) * ph;
+  logYAxis(g, y, ylo, yhi, pw, v => v.toFixed(v < 10 ? 1 : 0) + 's');
+
+  const band = pw / rows_.length, bw = Math.min(90, band * 0.7);
+  rows_.forEach((r, i) => {
+    const x = i * band + (band - bw) / 2;
+    drawPointCloud(g, x, bw, y, r.vals, r.c.slot);
+    drawBoxPlot(g, x, bw, y, r.s, r.c.slot);
+    const hit = el('rect', { x: i * band, y: 0, width: band, height: ph, fill: 'transparent' });
+    hoverable(hit, `<div class="hd">${r.c.label}</div>` + rows([
+      ['median', r.s.med.toFixed(1) + 's'], ['IQR', r.s.q1.toFixed(1) + 's – ' + r.s.q3.toFixed(1) + 's'],
+      ['range', r.s.min.toFixed(1) + 's – ' + r.s.max.toFixed(1) + 's'], ['responses', num(r.n)],
+    ]));
+    g.appendChild(hit);
+    g.appendChild(el('text', { x: i * band + band / 2, y: ph + 18, 'text-anchor': 'middle', fill: cssv('--text-muted'), 'font-size': 11 }, r.c.label));
+  });
+  svg.appendChild(g);
+  host.appendChild(svg);
+}
+
+/* ---------- chart: model time vs tool wait, by class ---------- */
+function chartClassLatency(host) {
+  const panel = document.getElementById('p-class-latency');
+  const rows_ = CLASSES.filter(c => classLatency[c.k].n > 0)
+    .map(c => { const b = classLatency[c.k]; return { c, model: boxStats(b.model_s), wait: boxStats(b.tool_wait_s), modelVals: b.model_s, waitVals: b.tool_wait_s, n: b.n }; });
+  if (!rows_.length) { if (panel) panel.hidden = true; return; }
+  if (panel) panel.hidden = false;
+  host.innerHTML = '';
+  const W = host.clientWidth, H = 280;
+  const m = { l: 56, r: 14, t: 10, b: 36 };
+  const pw = W - m.l - m.r, ph = H - m.t - m.b;
+  const svg = el('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}` });
+  const g = el('g', { transform: `translate(${m.l},${m.t})` });
+  const mins = rows_.flatMap(r => [r.model.min, r.wait.min]).filter(v => v > 0);
+  const ylo = Math.pow(10, Math.floor(Math.log10(mins.length ? Math.min(...mins) : 0.1)));
+  let yhi = Math.pow(10, Math.ceil(Math.log10(Math.max(1, ...rows_.flatMap(r => [r.model.max, r.wait.max])))));
+  if (yhi <= ylo) yhi = ylo * 10;
+  const y = v => ph - Math.log10(Math.max(v, ylo) / ylo) / Math.log10(yhi / ylo) * ph;
+  logYAxis(g, y, ylo, yhi, pw, v => v.toFixed(v < 10 ? 1 : 0) + 's');
+
+  const band = pw / rows_.length, gw = Math.min(band * 0.36, 50), gap = 6;
+  rows_.forEach((r, i) => {
+    const x0 = i * band + band / 2 - gw - gap / 2;
+    [['model time', r.model, r.modelVals, '--series-1'], ['tool wait', r.wait, r.waitVals, '--series-2']].forEach(([label, s, vals, slot], j) => {
+      const x = x0 + j * (gw + gap);
+      drawPointCloud(g, x, gw, y, vals, slot);
+      drawBoxPlot(g, x, gw, y, s, slot);
+      const hit = el('rect', { x, y: 0, width: gw, height: ph, fill: 'transparent' });
+      hoverable(hit, `<div class="hd">${r.c.label} · ${label}</div>` + rows([
+        ['median', s.med.toFixed(1) + 's'], ['IQR', s.q1.toFixed(1) + 's – ' + s.q3.toFixed(1) + 's'],
+        ['range', s.min.toFixed(1) + 's – ' + s.max.toFixed(1) + 's'], ['responses', num(r.n)],
+      ]));
+      g.appendChild(hit);
+    });
+    g.appendChild(el('text', { x: i * band + band / 2, y: ph + 18, 'text-anchor': 'middle', fill: cssv('--text-muted'), 'font-size': 11 }, r.c.label));
+  });
+  svg.appendChild(g);
+  host.appendChild(svg);
+}
+
+/* ---------- chart: interrupt rate by class ---------- */
+function chartClassInterrupt(host) {
+  const panel = document.getElementById('p-class-interrupt');
+  const rows_ = CLASSES.filter(c => classLatency[c.k].n > 0)
+    .map(c => { const b = classLatency[c.k]; return { c, w: wilson95(b.interrupted, b.n), n: b.n, ni: b.interrupted }; });
+  if (!rows_.length) { if (panel) panel.hidden = true; return; }
+  if (panel) panel.hidden = false;
+  host.innerHTML = '';
+  const W = host.clientWidth, H = 220;
+  const m = { l: 52, r: 14, t: 10, b: 30 };
+  const pw = W - m.l - m.r, ph = H - m.t - m.b;
+  const svg = el('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}` });
+  const g = el('g', { transform: `translate(${m.l},${m.t})` });
+  const max = niceMax(Math.max(1, ...rows_.map(r => r.w.hi * 100)), 4) / 100;
+  const y = v => ph - (v / max) * ph;
+  yAxis(g, y, max, pw, 4, v => (v * 100).toFixed(0) + '%');
+
+  const band = pw / rows_.length, bw = Math.min(40, band * 0.4);
+  rows_.forEach((r, i) => {
+    const cx = i * band + band / 2;
+    const bar = el('path', { d: barPath(cx - bw / 2, y(r.w.p), bw, Math.max(0, (r.w.p / max) * ph), 3), fill: cssv(r.c.slot), 'fill-opacity': 0.55 });
+    g.appendChild(bar);
+    g.appendChild(el('line', { x1: cx, x2: cx, y1: y(r.w.lo), y2: y(r.w.hi), stroke: cssv(r.c.slot), 'stroke-width': 2 }));
+    g.appendChild(el('line', { x1: cx - 6, x2: cx + 6, y1: y(r.w.lo), y2: y(r.w.lo), stroke: cssv(r.c.slot), 'stroke-width': 2 }));
+    g.appendChild(el('line', { x1: cx - 6, x2: cx + 6, y1: y(r.w.hi), y2: y(r.w.hi), stroke: cssv(r.c.slot), 'stroke-width': 2 }));
+    hoverable(bar, `<div class="hd">${r.c.label}</div>` + rows([
+      ['interrupted', pct(r.ni, r.n)], ['95% CI', (r.w.lo * 100).toFixed(2) + '% – ' + (r.w.hi * 100).toFixed(2) + '%'],
+      ['responses', num(r.n)],
+    ]));
+    g.appendChild(el('text', { x: cx, y: ph + 18, 'text-anchor': 'middle', fill: cssv('--text-muted'), 'font-size': 11 }, r.c.label));
+  });
+  svg.appendChild(g);
+  host.appendChild(svg);
+}
+
+/* ---------- table ---------- */
+function tableDaily(host) {
+  const head = ['Date', 'Sessions', 'Responses', 'Billed', 'Fresh', 'Output', 'Active min', 'Fresh/min', 'investigate', 'carry', 'reason', 'author', 'delegate'];
+  const body = actDays.map(d => {
+    const tot = CLASSES.reduce((a, c) => a + (d.cls[c.k] || 0), 0) || 1;
+    return `<tr><td>${dLong(d.date)}</td><td>${d.sessions}</td><td>${num(d.turns)}</td><td>${num(d.billed)}</td><td>${num(d.fresh)}</td><td>${num(d.output)}</td><td>${d.active_min.toFixed(0)}</td><td>${num(d.fpm)}</td>` +
+      CLASSES.map(c => `<td>${pct(d.cls[c.k] || 0, tot)}</td>`).join('') + '</tr>';
+  }).join('');
+  host.innerHTML = `<table><thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${body}</tbody>` +
+    `<tfoot><tr><td>Total — ${T.days} days</td><td>${T.sessions}</td><td>${num(T.turns)}</td><td>${num(T.billed)}</td><td>${num(T.fresh)}</td><td>${num(T.output)}</td><td>${num(T.active_min)}</td><td>${num(T.fresh_per_min)}</td>` +
+    CLASSES.map(c => `<td>${pct(classTot[c.k] || 0, actTotal)}</td>`).join('') + '</tr></tfoot></table>';
+}
+
+/* ---------- chart + table: large cache writes ---------- */
+function chartBreaks(host) {
+  stackedBar(host, BRK_KINDS.map(b => ({ label: b.label, slot: b.slot, v: brk[b.k + '_cc'] })), 60);
+}
+
+function tableBreaks(host) {
+  if (!brkTop.length) { host.innerHTML = '<p class="desc">No mid-session breaks in this range.</p>'; return; }
+  host.innerHTML = '<table><thead><tr><th>Date</th><th>Session</th><th>Written</th><th>Prefix discarded</th>' +
+    '<th>Still hit</th><th>Miss</th><th>Model switch</th></tr></thead><tbody>' +
+    brkTop.map(b => `<tr><td>${dLabel(b.date)}</td><td><code>${b.session}</code></td><td>${num(b.cc)}</td>` +
+      `<td>${num(b.ctx_pre)}</td><td>${num(b.cr)}</td><td>${b.severity}</td>` +
+      `<td>${b.model_changed ? b.prev_model + ' → ' + b.model : '—'}</td></tr>`).join('') +
+    '</tbody></table>';
+}
+
+// Heaviest individual delegated runs in range. A workflow agent names its wf_ run, so several rows
+// sharing one id are one Workflow call -- the reason its cost is easy to miss from the session row
+// alone. `peak context` is the agent's OWN context, not the parent's: that is exactly what
+// delegation buys, and why a session's peak_context stays a main-thread-only number.
+function tableSub(host) {
+  const panel = document.getElementById('p-sub');
+  if (!DATA.delegation || !subTop.length) { panel.hidden = true; return; }
+  panel.hidden = false;
+  const g = DATA.delegation, k = g.kind || {};
+  document.getElementById('sub-desc').innerHTML =
+    `${fmt(T.sub_billed)} billed inside ${num(T.sub_agents)} subagent runs in this range — ` +
+    `${pct(T.sub_billed, T.billed)} of all billed tokens, already counted in every figure above rather than added to them. ` +
+    `Across the full span: ${num((k.agent || {}).n || 0)} agent spawns (${fmt((k.agent || {}).billed || 0)}), ` +
+    `${num((k.workflow || {}).n || 0)} workflow agents (${fmt((k.workflow || {}).billed || 0)}). Heaviest runs:`;
+  host.innerHTML = '<table><thead><tr><th>Date</th><th>Session</th><th>Kind</th><th>Workflow</th>' +
+    '<th>Model</th><th>Responses</th><th>Billed</th><th>Active min</th><th>Peak context</th></tr></thead><tbody>' +
+    subTop.map(a => `<tr><td>${dLabel(a.date)}</td><td><code>${a.session}</code></td><td>${a.kind}</td>` +
+      `<td>${a.workflow ? '<code>' + a.workflow + '</code>' : '—'}</td><td>${a.model || '—'}</td>` +
+      `<td>${num(a.turns)}</td><td>${num(a.billed)}</td><td>${num(a.active_min)}</td>` +
+      `<td>${num(a.peak_context)}</td></tr>`).join('') +
+    '</tbody></table>';
+}
+
+/* ---------- render all ---------- */
+function renderAll() {
+  renderHeroKpis();
+  const M = DATA.meta || {};
+  document.title = `Token consumption — ${M.project || "project"}` + (M.generation ? ` (${M.generation} metrics)` : "");
+  document.getElementById("page-sub").innerHTML =
+    `Project <code>${M.project || ""}</code> · <code>${M.generation || "legacy"}</code> metrics generation (one row per API response). ` +
+    `Billed tokens = input + cache read + cache creation + output.`;
+  document.getElementById("scatter-desc").innerHTML =
+    `One dot per compaction segment (${num(segPts.length)} segments across ${T.sessions} sessions). A turn costs roughly its ` +
+    `resident context, so the context a segment carries sets the price of every response inside it — this is the mechanism behind the replay share above.`;
+  document.getElementById("src-note").innerHTML =
+    `Source: <code>${M.dir || "~/.claude/metrics"}/{sessions,segments,activity,daily,hourly}${M.suffix || ""}.csv</code>, written by the ` +
+    `<code>record-session-metrics.js</code> SessionEnd hook, plus <code>breaks${M.suffix || ""}.csv</code> for the cache-write panel ` +
+    `and <code>subagents${M.suffix || ""}.csv</code> for delegated work. ` +
+    `Only quiesced sessions (&gt;120s idle) are recorded.`;
+  document.getElementById("gen-note").textContent =
+    `Rendered ${M.generatedAt || ""} by token-dashboard's scripts/build-dashboard.mjs — re-run it for fresh numbers.`;
+  legendInto(document.getElementById('l-type'), TYPES);
+  legendInto(document.getElementById('l-class'), CLASSES);
+  document.getElementById('type-note').innerHTML =
+    `Cache creation is ${pct(T.cache_creation, T.billed)} of billed and output only ${pct(T.output, T.billed)} — ` +
+    `mean resident context ${fmt(T.cache_read / (T.turns || 1))} per response.`;
+  chartDaily(document.getElementById('c-daily'));
+  chartRate(document.getElementById('c-rate'));
+  chartType(document.getElementById('c-type'));
+  chartClassTotal(document.getElementById('c-class-total'));
+  chartClassDaily(document.getElementById('c-class-daily'));
+  chartHeat(document.getElementById('c-heat'), document.getElementById('c-heat-legend'));
+  chartScatter(document.getElementById('c-scatter'));
+  legendInto(document.getElementById('l-turn-class'), CLASSES.filter(c => turnPts.some(p => p.dominant_class === c.k)));
+  document.getElementById('turn-scatter-desc').innerHTML =
+    `One dot per response in the default population (interactive session, human- or queue-started turn) — ${num(turnPts.length)} responses in this range. ` +
+    `Both axes are log scale: the relationship is roughly linear there, so a point that sits off the diagonal spent its model time on something other than generating the tokens it returned.`;
+  chartTurnScatter(document.getElementById('c-turn-scatter'));
+  document.getElementById('turn-duration-desc').innerHTML =
+    `Distribution of wall-clock turn length by activity class (dots = individual responses, jittered; box = IQR, line = median, log scale — hover a class band for exact values) — ${num(latencyPts.length)} responses in this range.`;
+  chartTurnDuration(document.getElementById('c-turn-duration'));
+  legendInto(document.getElementById('l-latency'), LATENCY_SERIES);
+  document.getElementById('class-latency-desc').innerHTML =
+    `Distribution of seconds per response (dots = individual responses, jittered; box = IQR, line = median, log scale — hover a band for exact values), split by which activity class dominated the turn — ${num(latencyPts.length)} responses in this range. ` +
+    `A class sitting high on tool wait is stalled on tool or agent latency; high on model time, it is stalled on the model itself — each points at a different fix. ` +
+    `Tool wait can dip slightly negative: it is a sum of gaps between overlapping parallel tool calls, kept signed rather than clamped so model + wait + compact + inject + tail always reconstructs the turn's full span exactly.`;
+  chartClassLatency(document.getElementById('c-class-latency'));
+  document.getElementById('class-interrupt-desc').innerHTML =
+    `Share of each class's responses that were interrupted or cancelled before finishing, across ${num(latencyPts.length)} responses in this range, with a 95% Wilson confidence interval. ` +
+    `Overlapping intervals mean the classes aren't distinguishable at this sample size.`;
+  chartClassInterrupt(document.getElementById('c-class-interrupt'));
+  legendInto(document.getElementById('l-brk'), BRK_KINDS);
+  const brkTracked = brk.cold_cc + brk.compact_cc + brk.retry_cc + brk.ttl_cc + brk.growth_cc + brk.break_cc;
+  document.getElementById('brk-desc').innerHTML =
+    `Only large writes (&ge;20K cache creation) — ${fmt(brkTracked)} of the range's ${fmt(T.cache_creation)}, ` +
+    `across ${num(brk.cold_n + brk.compact_n + brk.retry_n + brk.ttl_n + brk.growth_n + brk.break_n)} responses. A <strong>cold boot</strong> is the unavoidable price of ` +
+    `starting a session; a <strong>compaction rebuild</strong> is the price of not having cleared first; a ` +
+    `<strong>failed-request retry</strong> re-sends a request that errored, and since the failed attempt cached ` +
+    `nothing there was no entry to discard; a ` +
+    `<strong>cache expiry</strong> follows an idle gap of an hour or more, past which the server's cache TTL has ` +
+    `certainly lapsed, so the prefix was already gone rather than thrown away; <strong>prefix growth</strong> is a ` +
+    `large write whose cache_read held up, meaning new content entered the prefix rather than the prefix being ` +
+    `discarded; a ` +
+    `<strong>mid-session break</strong> is cache discarded while the session was running and still cached, and is the ` +
+    `only avoidable kind — ${pct(brk.break_cc, brkTracked)} of large writes here. ` +
+    `${num(brk.full_n)} were total misses (nothing hit); ${num(brk.model_n)} followed a model switch, which invalidates the prefix on its own.`;
+  chartBreaks(document.getElementById('c-brk'));
+  tableBreaks(document.getElementById('t-brk'));
+  tableSub(document.getElementById('t-sub'));
+  tableDaily(document.getElementById('t-daily'));
+}
+
+/* ---------- filter bar ---------- */
+const PRESETS = [{ k: '7', label: '7d', n: 7 }, { k: '14', label: '14d', n: 14 }, { k: '30', label: '30d', n: 30 }, { k: 'all', label: 'All', n: 'all' }];
+const presetHost = document.getElementById('fb-presets');
+presetHost.innerHTML = PRESETS.map(p => `<button type="button" data-k="${p.k}">${p.label}</button>`).join('');
+const fromInput = document.getElementById('fb-from'), toInput = document.getElementById('fb-to');
+fromInput.min = toInput.min = DATA_FIRST;
+fromInput.max = toInput.max = DATA_LAST;
+
+function presetRange(n) {
+  if (n === 'all') return [DATA_FIRST, DATA_LAST];
+  const to = DATA_LAST;
+  const d = new Date(to + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() - (n - 1));
+  const from = d.toISOString().slice(0, 10);
+  return [from < DATA_FIRST ? DATA_FIRST : from, to];
+}
+function setActivePreset(k) {
+  presetHost.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.k === k));
+}
+function applyRange(from, to, presetKey) {
+  if (from > to) { const t = from; from = to; to = t; }
+  if (from < DATA_FIRST) from = DATA_FIRST;
+  if (to > DATA_LAST) to = DATA_LAST;
+  fromInput.value = from;
+  toInput.value = to;
+  setActivePreset(presetKey || null);
+  computeView(from, to);
+  renderAll();
+  const spanDays = Math.round((new Date(to + 'T00:00:00Z') - new Date(from + 'T00:00:00Z')) / 86400000) + 1;
+  document.getElementById('fb-status').textContent =
+    `${dLabel(from)} → ${dLabel(to)} · ${spanDays} day${spanDays === 1 ? '' : 's'} of ${dLabel(DATA_FIRST)} → ${dLabel(DATA_LAST)} available`;
+}
+presetHost.addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  const p = PRESETS.find(p => p.k === b.dataset.k);
+  const [from, to] = presetRange(p.n);
+  applyRange(from, to, p.k);
+});
+fromInput.addEventListener('change', () => applyRange(fromInput.value, toInput.value));
+toInput.addEventListener('change', () => applyRange(fromInput.value, toInput.value));
+document.getElementById('fb-reset').addEventListener('click', () => applyRange(DATA_FIRST, DATA_LAST, 'all'));
+
+applyRange(DATA_FIRST, DATA_LAST, 'all');
+
+let rt;
+window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(renderAll, 140); });
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', renderAll);
+new MutationObserver(renderAll).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+</script>
+</body>
+</html>

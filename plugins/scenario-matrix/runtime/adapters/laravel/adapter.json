@@ -1,0 +1,33 @@
+{
+  "name": "laravel",
+  "version": "0.1.0",
+  "description": "Runs artisan and tinker inside a service container behind a connection guard, reads storage/logs as a log source, and kills or doubles the queue worker as a fault.",
+  "requires": ["docker"],
+  "detect": [
+    { "kind": "file", "glob": "artisan" },
+    { "kind": "file", "glob": "*/artisan" },
+    { "kind": "dep", "manifest": "**/composer.json", "name": "^laravel/framework$" },
+    { "kind": "registryKey", "key": "exec" }
+  ],
+  "files": ["php.mjs", "adapter-laravel.mjs"],
+  "exports": {
+    "php.mjs": ["artisan", "tinker", "queueWorkerFault", "extraQueueWorker", "odsFromCsv", "workbook"],
+    "observe.mjs": ["logs", "noLog"]
+  },
+  "drivers": ["logSource.laravel"],
+  "npm": {},
+  "postInstall": [],
+  "systemPackages": {},
+  "config": {
+    "defaultWorkdir": "/var/www/html",
+    "execWrapper": [],
+    "workerUser": null,
+    "truncateLogsOnReset": true,
+    "noDatabaseOptions": [],
+    "noDatabaseConflicts": [],
+    "selftest": { "service": null }
+  },
+  "infra": [],
+  "api": "api.md",
+  "tests": ["php.test.mjs", "observe-laravel.test.mjs", "reset-laravel.test.mjs", "lint-laravel.test.mjs", "classification-laravel.test.mjs", "selftest-laravel.test.mjs"]
+}

@@ -1,0 +1,23 @@
+{
+  "name": "mailpit",
+  "version": "0.1.0",
+  "description": "Reads one shared Mailpit mailbox from inside its container, to list, count and fetch the mail the product sent.",
+  "requires": ["docker"],
+  "detect": [
+    { "kind": "line", "glob": "docker-compose*.y*ml", "regex": "image:\\s*\\S*mailpit" },
+    { "kind": "line", "glob": "compose*.y*ml", "regex": "image:\\s*\\S*mailpit" },
+    { "kind": "registryKey", "key": "mail" }
+  ],
+  "files": ["adapter-mailpit.mjs"],
+  "exports": {
+    "observe.mjs": ["mail", "mailCount", "mailMessage"]
+  },
+  "drivers": ["mail", "mailCount", "mailMessage"],
+  "npm": {},
+  "postInstall": [],
+  "systemPackages": {},
+  "config": { "selftest": { "enabled": false } },
+  "infra": [],
+  "api": "api.md",
+  "tests": ["observe-mailpit.test.mjs"]
+}

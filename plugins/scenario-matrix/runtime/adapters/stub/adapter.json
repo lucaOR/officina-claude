@@ -1,0 +1,22 @@
+{
+  "name": "stub",
+  "version": "0.1.0",
+  "description": "Reads a stub server's request journal and injects or clears its faults, through the stub's own __scn control plane.",
+  "requires": [],
+  "detect": [
+    { "kind": "registryKey", "key": "stubs" }
+  ],
+  "files": ["adapter-stub.mjs"],
+  "exports": {
+    "observe.mjs": ["stub"],
+    "fault.mjs": ["stubFault"]
+  },
+  "drivers": ["stub", "stubFault"],
+  "npm": {},
+  "postInstall": [],
+  "systemPackages": {},
+  "config": { "selftest": { "name": null } },
+  "infra": [],
+  "api": "api.md",
+  "tests": ["observe-stub.test.mjs", "fault-stub.test.mjs", "stub-process.test.mjs"]
+}

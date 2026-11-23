@@ -1,0 +1,21 @@
+{
+  "name": "sanctum",
+  "version": "0.1.0",
+  "description": "Signs the http client's requests the way a Sanctum-fronted Laravel API accepts them, and sends browser-context API calls with the same headers.",
+  "requires": ["http"],
+  "detect": [
+    { "kind": "dep", "manifest": "**/composer.json", "name": "^laravel/sanctum$" }
+  ],
+  "files": ["api.mjs", "adapter-sanctum.mjs"],
+  "exports": {
+    "api.mjs": ["apiRequest", "statefulHeaders", "xsrfToken"]
+  },
+  "drivers": [],
+  "npm": {},
+  "postInstall": [],
+  "systemPackages": {},
+  "config": {},
+  "infra": [],
+  "api": "api.md",
+  "tests": ["api.test.mjs", "http-sanctum.test.mjs", "lint-sanctum.test.mjs"]
+}

@@ -1,0 +1,12 @@
+epic: neutral
+infra:
+  env_registry:
+    hosts: { app: app.test }
+scenarios:
+  - id: A-01
+    behaviour: a saved note appears in the list
+    reach: be-only
+    setup: []
+    expected: the list shows the note
+    priority: P1
+    status: open

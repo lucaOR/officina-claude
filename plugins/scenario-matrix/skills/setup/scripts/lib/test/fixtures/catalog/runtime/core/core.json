@@ -1,0 +1,11 @@
+{
+  "files": [
+    "core1.mjs"
+  ],
+  "exports": {
+    "core1.mjs": [
+      "coreFn"
+    ]
+  },
+  "tests": []
+}

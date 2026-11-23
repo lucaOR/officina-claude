@@ -1,0 +1,21 @@
+{
+  "name": "http",
+  "version": "0.1.0",
+  "description": "A browser-free HTTP client with its own cookie jar, a bearer slot and a header seam, for rows whose subject is an API.",
+  "requires": [],
+  "detect": [
+    { "kind": "always" }
+  ],
+  "files": ["http.mjs", "adapter-http.mjs"],
+  "exports": {
+    "http.mjs": ["apiClient", "redirectTarget", "rawRequest"]
+  },
+  "drivers": [],
+  "npm": {},
+  "postInstall": [],
+  "systemPackages": {},
+  "config": {},
+  "infra": [],
+  "api": "api.md",
+  "tests": ["http.test.mjs"]
+}

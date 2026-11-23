@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "dbPrefix": "scn_",
+  "tenantKey": null,
+  "runsDir": "docs/scenario-runs",
+  "compileHint": "/scenario-matrix:matrix {epic} compile {id}",
+  "intent_sources": [],
+  "monitor": null,
+  "lifecycle": {
+    "up": null,
+    "down": null,
+    "refusedExit": 78,
+    "warmMarker": ".claude/scenarios/_infra/.scn-warm",
+    "keepWarmEnv": "SCN_KEEP_WARM"
+  },
+  "reset": { "baseline": null },
+  "selftest": { "defaultEpic": null },
+  "check": { "artifactKinds": ["seed"], "forbiddenArtifactPaths": [], "noIdentityRecipes": [] },
+  "adapters": {}
+}

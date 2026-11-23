@@ -1,0 +1,33 @@
+{
+  "name": "a",
+  "version": "0.1.0",
+  "description": "fixture a",
+  "requires": [],
+  "detect": [
+    {
+      "kind": "always"
+    }
+  ],
+  "files": [
+    "adapter-a.mjs"
+  ],
+  "exports": {
+    "observe.mjs": [
+      "logs",
+      "noLog"
+    ],
+    "a.mjs": [
+      "aOnly"
+    ]
+  },
+  "drivers": [],
+  "npm": {},
+  "postInstall": [],
+  "systemPackages": [],
+  "config": {
+    "x": 1
+  },
+  "infra": [],
+  "api": "api.md",
+  "tests": []
+}

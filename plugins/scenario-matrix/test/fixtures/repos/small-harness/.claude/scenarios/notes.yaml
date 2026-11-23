@@ -1,0 +1,4 @@
+epic: notes
+scenarios:
+  - id: A-01
+    behaviour: a note can be saved

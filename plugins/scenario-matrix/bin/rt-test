@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Dev only: assemble the runtime into a scratch project and run its tests there.
+# Usage: bin/rt-test [file-prefix]   (SCN_ADAPTERS=a,b picks adapters; default all)
+set -euo pipefail
+here="$(cd "$(dirname "$0")/.." && pwd)"
+dest="${TMPDIR:-/tmp}/scenario-matrix-rt"
+node "$here/dev/assemble.mjs" "$dest" --adapters "${SCN_ADAPTERS:-all}" >/dev/null
+cd "$dest/.claude/scenarios/_lib"
+node --test test/${1:-}*.test.mjs

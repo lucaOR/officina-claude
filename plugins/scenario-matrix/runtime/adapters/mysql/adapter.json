@@ -1,0 +1,25 @@
+{
+  "name": "mysql",
+  "version": "0.1.0",
+  "description": "Drives mysql and mariadb clients for the sql levers, freezes one schema with table locks, and rehearses a matrix's setup SQL.",
+  "requires": ["sql", "docker"],
+  "detect": [
+    { "kind": "line", "glob": "docker-compose*.y*ml", "regex": "image:\\s*\\S*(mysql|mariadb)" },
+    { "kind": "line", "glob": "compose*.y*ml", "regex": "image:\\s*\\S*(mysql|mariadb)" },
+    { "kind": "line", "glob": ".env*", "regex": "^DB_CONNECTION=mysql" },
+    { "kind": "dep", "manifest": "package.json", "name": "^(mysql2?|mariadb)$" },
+    { "kind": "registryKey", "key": "db" }
+  ],
+  "files": ["rehearse-sql.mjs", "adapter-mysql.mjs"],
+  "exports": {
+    "fault.mjs": ["schemaFreeze"]
+  },
+  "drivers": ["sql.mysql", "schemaFreeze"],
+  "npm": {},
+  "postInstall": [],
+  "systemPackages": {},
+  "config": { "sentinelDb": null, "selftest": { "db": null } },
+  "infra": [],
+  "api": "api.md",
+  "tests": ["dialect-mysql.test.mjs", "classification-mysql.test.mjs", "lint-mysql.test.mjs", "reset-mysql.test.mjs", "fault-mysql.test.mjs", "rehearse-sql.test.mjs", "selftest-mysql.test.mjs"]
+}

@@ -1,0 +1,38 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "officina-claude",
+  "description": "Session handoffs, token metrics, live plan co-design and behaviour-driven scenario matrices for Claude Code.",
+  "owner": {
+    "name": "Luca Oronzo"
+  },
+  "plugins": [
+    {
+      "name": "session",
+      "source": "./plugins/session",
+      "description": "Interview-first idea refinement (/refine) and session handoff notes that let /clear replace /compact (/handoff), with the pivot gate that checks each note against the work item's intent file.",
+      "version": "0.1.0",
+      "category": "productivity"
+    },
+    {
+      "name": "token-hygiene",
+      "source": "./plugins/token-hygiene",
+      "description": "Per-session token metrics recorded at SessionEnd, plus /token-dashboard to chart consumption, burn rate and cache behaviour.",
+      "version": "0.1.0",
+      "category": "productivity"
+    },
+    {
+      "name": "planner-companion",
+      "source": "./plugins/planner-companion",
+      "description": "Co-design a plan with Claude on a live local web page: decisions, diagrams and tasks, with archify-rendered sequence, workflow and ERD diagrams.",
+      "version": "0.1.0",
+      "category": "productivity"
+    },
+    {
+      "name": "scenario-matrix",
+      "source": "./plugins/scenario-matrix",
+      "description": "Behaviour-driven scenario matrices with an installable Node harness: setup installs the core and the adapters a project's stack needs, matrix builds and compiles the matrix, run runs it.",
+      "version": "0.1.0",
+      "category": "testing"
+    }
+  ]
+}

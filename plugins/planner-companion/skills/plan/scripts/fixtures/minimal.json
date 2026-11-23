@@ -1,0 +1,111 @@
+{
+  "schema": 1,
+  "slug": "minimal",
+  "title": "Minimal plan",
+  "goal": "Answer a question and store the answer.",
+  "architecture": "The API receives the question. A store keeps the answer.",
+  "techStack": "Node, SQLite",
+  "spec": null,
+  "summary": ["Ask first, then store.", "D4 is still open.", "Two tasks cover it."],
+  "checkFirst": ["D4"],
+  "constraints": ["No outbound network."],
+  "reviewFocus": [{"text": "An empty question returns a clear error.", "test": "T1"}],
+  "counters": {"D": 4, "T": 2, "S": 2},
+  "flow": {
+    "title": "Question to stored answer",
+    "rows": [
+      ["actor ui", "Page", "frontend"],
+      ["actor api", "Server", "backend"],
+      ["actor db", "Store", "database"],
+      ["phase", "Ask"],
+      ["ui", "api", "question"],
+      ["api", "ui", "answer", "return"],
+      ["phase", "Store"],
+      ["api", "db", "save answer"]
+    ],
+    "phaseDomains": {"Ask": "ask", "Store": "store"}
+  },
+  "domains": [
+    {
+      "id": "ask",
+      "title": "How is a question accepted?",
+      "checks": ["Is an empty question rejected?"],
+      "diagram": {
+        "type": "workflow",
+        "title": "Ask",
+        "rows": [["api", "Receive", "backend"], ["check", "Validate", "backend"], ["api > check", "passes"]]
+      }
+    },
+    {
+      "id": "store",
+      "title": "Where is the answer kept?",
+      "checks": ["Does a restart lose answers?"],
+      "diagram": {
+        "type": "workflow",
+        "title": "Store",
+        "rows": [["api", "Save", "backend"], ["db", "Table", "database"], ["api > db", "writes"]]
+      }
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1", "domain": "ask", "title": "Reject empty questions", "state": "settled",
+      "options": [{"key": "a", "label": "Reject", "why": "Clear error for the caller."}],
+      "recommended": "a", "pick": "a", "whyPick": "Callers learn about mistakes early.",
+      "slots": {"scale": "One check per request; failure returns 400.", "dataFrom": "The request body."},
+      "more": {"why": "Cheap and explicit.", "touches": ["src/Ask.php:12"], "related": ["T1"]},
+      "nodes": ["api"], "recheck": false
+    },
+    {
+      "id": "D2", "domain": "store", "title": "Where answers live", "state": "settled",
+      "options": [{"key": "a", "label": "SQLite", "why": "No extra service."}, {"key": "b", "label": "Files", "why": "Simplest."}],
+      "recommended": "a", "pick": "a", "whyPick": "Queryable and local.",
+      "slots": {"scale": "Fine up to a few million rows.", "dataFrom": "The answer produced by the API."},
+      "recheck": false
+    },
+    {
+      "id": "D3", "domain": "store", "title": "Keep answers in memory", "state": "open",
+      "options": [{"key": "a", "label": "Memory", "why": "Fast."}],
+      "recheck": false,
+      "removed": {"replacedBy": ["D4"], "note": "Lost on restart; replaced by D4."}
+    },
+    {
+      "id": "D4", "domain": "store", "title": "Retention of answers", "state": "open",
+      "options": [{"key": "a", "label": "Forever", "why": "Nothing is lost."}, {"key": "b", "label": "30 days", "why": "Bounded size."}],
+      "recommended": "b",
+      "slots": {"scale": "Retention bounds table growth.", "dataFrom": "A scheduled cleanup job."},
+      "recheck": false
+    }
+  ],
+  "tasks": [
+    {
+      "id": "T1", "title": "Accept questions", "decisions": ["D1"], "after": [],
+      "files": {"create": ["src/Ask.php"], "modify": [], "test": ["tests/AskTest.php"]},
+      "interfaces": {"consumes": "The request body.", "produces": "A validated question."},
+      "steps": [{"title": "Write the failing test", "body": "An empty question is rejected.", "code": {"lang": "php", "text": "assertSame(400, $r->status());"}, "run": "php artisan test", "expect": "FAIL"}],
+      "commit": "feat: accept questions", "recheck": false
+    },
+    {
+      "id": "T2", "title": "Store answers", "decisions": ["D2", "D4"], "after": ["T1"],
+      "files": {"create": ["src/Store.php"], "modify": [], "test": ["tests/StoreTest.php"]},
+      "interfaces": {"consumes": "A validated question.", "produces": "A stored answer."},
+      "steps": [{"title": "Write the failing test", "body": "An answer is persisted.", "run": "php artisan test", "expect": "FAIL"}],
+      "commit": "feat: store answers", "recheck": false
+    }
+  ],
+  "scenarios": [
+    {"id": "S1", "domain": "ask", "title": "Empty question", "expected": "400 with a clear message.", "tasks": ["T1"], "recheck": false},
+    {"id": "S2", "domain": "store", "title": "Answer persisted", "expected": "The answer is readable after restart.", "tasks": ["T2"], "recheck": false}
+  ],
+  "entities": {
+    "title": "Data",
+    "rows": [
+      ["entity question", "Question"],
+      ["entity answer", "Answer"],
+      ["question.id", "text", "pk"],
+      ["answer.id", "text", "pk"],
+      ["answer.question_id", "text", "fk", "question.id"],
+      ["answer > question", "many:one", "answers"]
+    ]
+  }
+}

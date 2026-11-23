@@ -1,0 +1,19 @@
+{
+  "name": "sql",
+  "version": "0.1.0",
+  "description": "Runs SQL against the scenario databases inside a container, with the target-prefix guard and the lint rules that keep a script off ambient databases. A dialect adapter supplies the client.",
+  "requires": ["docker"],
+  "detect": [],
+  "files": ["db.mjs", "adapter-sql.mjs"],
+  "exports": {
+    "db.mjs": ["sql", "one", "scalar"]
+  },
+  "drivers": [],
+  "npm": {},
+  "postInstall": [],
+  "systemPackages": {},
+  "config": { "ambientDbPrefixes": ["local"] },
+  "infra": [],
+  "api": "api.md",
+  "tests": ["db.test.mjs", "lint-sql.test.mjs", "classification-sql.test.mjs"]
+}

@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/record-session-metrics.js\"",
+            "timeout": 30,
+            "statusMessage": "Record session metrics"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,1 @@
+{ "name": "shop", "scripts": { "dev": "vite", "test": "vitest" } }

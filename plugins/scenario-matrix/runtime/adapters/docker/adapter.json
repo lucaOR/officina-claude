@@ -1,0 +1,26 @@
+{
+  "name": "docker",
+  "version": "0.1.0",
+  "description": "Reads container logs as log sources and pauses or stops containers as faults, through the docker CLI.",
+  "requires": [],
+  "detect": [
+    { "kind": "file", "glob": "docker-compose*.y*ml" },
+    { "kind": "file", "glob": "compose*.y*ml" },
+    { "kind": "file", "glob": "Dockerfile" },
+    { "kind": "registryKey", "key": "log_sources" },
+    { "kind": "registryKey", "key": "fault_containers" }
+  ],
+  "files": ["docker.mjs", "adapter-docker.mjs"],
+  "exports": {
+    "observe.mjs": ["logs", "noLog"],
+    "fault.mjs": ["dbFault", "stopFault"]
+  },
+  "drivers": ["logSource.docker", "dbFault", "stopFault"],
+  "npm": {},
+  "postInstall": [],
+  "systemPackages": {},
+  "config": { "sharedContainers": [], "selftest": { "logSource": null } },
+  "infra": [],
+  "api": "api.md",
+  "tests": ["docker.test.mjs", "observe-docker.test.mjs", "fault-docker.test.mjs", "lint-docker.test.mjs", "classification-docker.test.mjs"]
+}

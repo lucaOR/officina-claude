@@ -1,0 +1,35 @@
+{
+  "name": "c",
+  "version": "0.1.0",
+  "description": "fixture c",
+  "requires": [
+    "b"
+  ],
+  "detect": [
+    {
+      "kind": "always"
+    }
+  ],
+  "files": [
+    "adapter-c.mjs"
+  ],
+  "exports": {
+    "c.mjs": [
+      "cOnly"
+    ]
+  },
+  "drivers": [
+    "cdrv"
+  ],
+  "npm": {},
+  "postInstall": [],
+  "systemPackages": [],
+  "config": {
+    "y": {
+      "z": 2
+    }
+  },
+  "infra": [],
+  "api": "api.md",
+  "tests": []
+}
