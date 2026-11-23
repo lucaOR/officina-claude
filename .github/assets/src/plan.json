@@ -1,0 +1,592 @@
+{
+  "schema": 1,
+  "slug": "bookshop-checkout",
+  "title": "Bookshop checkout",
+  "goal": "Let a reader pay for a basket of books without ever selling a copy twice.",
+  "architecture": "The web shop posts the basket to the Orders API. Orders reserves copies in Stock, charges the card through Payments, then commits the reservation.",
+  "techStack": "Node, Postgres, a hosted card processor",
+  "spec": null,
+  "summary": [
+    "Reserve stock first, then charge the card.",
+    "D4 is still open: how long a reservation lives.",
+    "Three tasks: reserve, pay, confirm."
+  ],
+  "checkFirst": [
+    "D4"
+  ],
+  "constraints": [
+    "Card numbers never touch our servers.",
+    "A reservation always expires."
+  ],
+  "reviewFocus": [
+    {
+      "text": "Two readers buy the last copy at once, and exactly one order succeeds.",
+      "test": "T1"
+    }
+  ],
+  "counters": {
+    "D": 4,
+    "T": 3,
+    "S": 2
+  },
+  "flow": {
+    "title": "Bookshop checkout",
+    "rows": [
+      [
+        "actor reader",
+        "Reader",
+        "external"
+      ],
+      [
+        "actor web",
+        "Shop web",
+        "frontend"
+      ],
+      [
+        "actor orders",
+        "Orders API"
+      ],
+      [
+        "actor pay",
+        "Payments",
+        "security"
+      ],
+      [
+        "actor stock",
+        "Stock",
+        "database"
+      ],
+      [
+        "phase",
+        "Place order"
+      ],
+      [
+        "reader",
+        "web",
+        "Checkout basket"
+      ],
+      [
+        "web",
+        "orders",
+        "POST /orders"
+      ],
+      [
+        "orders",
+        "stock",
+        "reserve books",
+        "emphasis"
+      ],
+      [
+        "stock",
+        "orders",
+        "reserved",
+        "return"
+      ],
+      [
+        "phase",
+        "Confirm"
+      ],
+      [
+        "orders",
+        "pay",
+        "charge card",
+        "security"
+      ],
+      [
+        "pay",
+        "orders",
+        "paid",
+        "return"
+      ],
+      [
+        "orders",
+        "stock",
+        "commit stock"
+      ],
+      [
+        "orders",
+        "web",
+        "201 confirmed",
+        "return"
+      ],
+      [
+        "web",
+        "reader",
+        "Order summary",
+        "return"
+      ]
+    ],
+    "phaseDomains": {
+      "Place order": "stock",
+      "Confirm": "payment"
+    }
+  },
+  "domains": [
+    {
+      "id": "stock",
+      "title": "How are copies kept from being sold twice?",
+      "checks": [
+        "Does a failed payment release the copies?"
+      ],
+      "diagram": {
+        "type": "workflow",
+        "title": "How are copies kept from being sold twice?",
+        "rows": [
+          [
+            "basket",
+            "Basket",
+            "frontend"
+          ],
+          [
+            "reserve",
+            "Reserve copies",
+            "database"
+          ],
+          [
+            "held",
+            "Enough stock?",
+            "security"
+          ],
+          [
+            "reject",
+            "Sold out",
+            "frontend"
+          ],
+          [
+            "basket > reserve"
+          ],
+          [
+            "reserve > held"
+          ],
+          [
+            "held > reject",
+            "no",
+            "dashed"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "payment",
+      "title": "When is the card charged?",
+      "checks": [
+        "Is a charge ever repeated on retry?"
+      ],
+      "diagram": {
+        "type": "workflow",
+        "title": "When is the card charged?",
+        "rows": [
+          [
+            "reserved",
+            "Reserved",
+            "database"
+          ],
+          [
+            "charge",
+            "Charge card",
+            "security"
+          ],
+          [
+            "commit",
+            "Commit stock",
+            "database"
+          ],
+          [
+            "release",
+            "Release copies",
+            "backend"
+          ],
+          [
+            "reserved > charge"
+          ],
+          [
+            "charge > commit",
+            "paid",
+            "emphasis"
+          ],
+          [
+            "charge > release",
+            "declined",
+            "dashed"
+          ]
+        ]
+      }
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "domain": "stock",
+      "title": "Reserve copies before charging",
+      "state": "settled",
+      "options": [
+        {
+          "key": "a",
+          "label": "Reserve first",
+          "why": "A reader is never charged for a book we cannot ship."
+        },
+        {
+          "key": "b",
+          "label": "Charge first",
+          "why": "One fewer step, but refunds are needed."
+        }
+      ],
+      "recommended": "a",
+      "pick": "a",
+      "whyPick": "Refunds cost more than a short hold.",
+      "slots": {
+        "scale": "One row lock per title; a sold-out title answers with 409.",
+        "dataFrom": "The basket lines from the web shop."
+      },
+      "more": {
+        "why": "The hold keeps the last copy for the reader who is paying.",
+        "touches": [
+          "src/orders/reserve.js:20"
+        ],
+        "related": [
+          "T1"
+        ]
+      },
+      "nodes": [
+        "stock",
+        "m3"
+      ],
+      "recheck": false
+    },
+    {
+      "id": "D2",
+      "domain": "payment",
+      "title": "Use a hosted card form",
+      "state": "settled",
+      "options": [
+        {
+          "key": "a",
+          "label": "Hosted form",
+          "why": "The card number never reaches our servers."
+        },
+        {
+          "key": "b",
+          "label": "Own form",
+          "why": "Full control, full audit scope."
+        }
+      ],
+      "recommended": "a",
+      "pick": "a",
+      "whyPick": "It keeps the shop out of card audit scope.",
+      "slots": {
+        "scale": "The processor retries are idempotent through the order id.",
+        "dataFrom": "A payment token from the hosted form."
+      },
+      "nodes": [
+        "pay"
+      ],
+      "recheck": false
+    },
+    {
+      "id": "D3",
+      "domain": null,
+      "title": "Keep prices as integer cents",
+      "state": "settled",
+      "options": [
+        {
+          "key": "a",
+          "label": "Cents",
+          "why": "No rounding drift."
+        },
+        {
+          "key": "b",
+          "label": "Decimals",
+          "why": "Readable in the database."
+        }
+      ],
+      "recommended": "a",
+      "pick": "a",
+      "whyPick": "Sums of cents are exact.",
+      "slots": {
+        "scale": "A basket total never loses a cent.",
+        "dataFrom": "book.price_cents at the time of the order."
+      },
+      "nodes": [
+        "book"
+      ],
+      "recheck": false
+    },
+    {
+      "id": "D4",
+      "domain": "stock",
+      "title": "How long a reservation lives",
+      "state": "open",
+      "options": [
+        {
+          "key": "a",
+          "label": "10 minutes",
+          "why": "Frees copies quickly."
+        },
+        {
+          "key": "b",
+          "label": "30 minutes",
+          "why": "Forgiving for slow card checks."
+        },
+        {
+          "key": "c",
+          "label": "Until payment fails",
+          "why": "No clock to tune, but abandoned baskets hold stock."
+        }
+      ],
+      "recommended": "a",
+      "slots": {
+        "scale": "A cleanup job releases expired holds every minute.",
+        "dataFrom": "The reservation timestamp in Stock."
+      },
+      "nodes": [
+        "m3"
+      ],
+      "recheck": false
+    }
+  ],
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Reserve stock for a basket",
+      "decisions": [
+        "D1",
+        "D4"
+      ],
+      "after": [],
+      "files": {
+        "create": [
+          "src/orders/reserve.js"
+        ],
+        "modify": [],
+        "test": [
+          "test/reserve.test.js"
+        ]
+      },
+      "interfaces": {
+        "consumes": "The basket lines.",
+        "produces": "A reservation id."
+      },
+      "steps": [
+        {
+          "title": "Write the failing test",
+          "body": "Two readers race for the last copy.",
+          "code": {
+            "lang": "js",
+            "text": "assert.equal(results.filter(r => r.ok).length, 1);"
+          },
+          "run": "npm test",
+          "expect": "FAIL"
+        }
+      ],
+      "commit": "feat: reserve stock for a basket",
+      "recheck": false
+    },
+    {
+      "id": "T2",
+      "title": "Charge the card",
+      "decisions": [
+        "D2"
+      ],
+      "after": [
+        "T1"
+      ],
+      "files": {
+        "create": [
+          "src/orders/pay.js"
+        ],
+        "modify": [],
+        "test": [
+          "test/pay.test.js"
+        ]
+      },
+      "interfaces": {
+        "consumes": "A reservation id.",
+        "produces": "A paid order."
+      },
+      "steps": [
+        {
+          "title": "Write the failing test",
+          "body": "A declined card releases the copies.",
+          "run": "npm test",
+          "expect": "FAIL"
+        }
+      ],
+      "commit": "feat: charge the card",
+      "recheck": false
+    },
+    {
+      "id": "T3",
+      "title": "Confirm the order",
+      "decisions": [
+        "D3"
+      ],
+      "after": [
+        "T2"
+      ],
+      "files": {
+        "create": [
+          "src/orders/confirm.js"
+        ],
+        "modify": [],
+        "test": [
+          "test/confirm.test.js"
+        ]
+      },
+      "interfaces": {
+        "consumes": "A paid order.",
+        "produces": "A 201 response and an order summary."
+      },
+      "steps": [
+        {
+          "title": "Write the failing test",
+          "body": "The summary totals match the basket.",
+          "run": "npm test",
+          "expect": "FAIL"
+        }
+      ],
+      "commit": "feat: confirm the order",
+      "recheck": false
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "S1",
+      "domain": "stock",
+      "title": "Last copy contested",
+      "expected": "One order succeeds and the other gets a 409.",
+      "tasks": [
+        "T1"
+      ],
+      "recheck": false
+    },
+    {
+      "id": "S2",
+      "domain": "payment",
+      "title": "Card declined",
+      "expected": "The reserved copies are released and no order is stored.",
+      "tasks": [
+        "T2"
+      ],
+      "recheck": false
+    }
+  ],
+  "entities": {
+    "title": "Bookshop catalogue",
+    "rows": [
+      [
+        "entity author",
+        "Author"
+      ],
+      [
+        "entity book",
+        "Book"
+      ],
+      [
+        "entity customer",
+        "Customer"
+      ],
+      [
+        "entity order",
+        "Order"
+      ],
+      [
+        "entity line",
+        "OrderLine"
+      ],
+      [
+        "author.id",
+        "bigint",
+        "pk"
+      ],
+      [
+        "author.name",
+        "text"
+      ],
+      [
+        "book.id",
+        "bigint",
+        "pk"
+      ],
+      [
+        "book.author_id",
+        "bigint",
+        "fk",
+        "author.id"
+      ],
+      [
+        "book.title",
+        "text"
+      ],
+      [
+        "book.price_cents",
+        "int"
+      ],
+      [
+        "customer.id",
+        "bigint",
+        "pk"
+      ],
+      [
+        "customer.email",
+        "text",
+        "uk"
+      ],
+      [
+        "order.id",
+        "bigint",
+        "pk"
+      ],
+      [
+        "order.customer_id",
+        "bigint",
+        "fk",
+        "customer.id"
+      ],
+      [
+        "order.placed_at",
+        "timestamp"
+      ],
+      [
+        "line.id",
+        "bigint",
+        "pk"
+      ],
+      [
+        "line.order_id",
+        "bigint",
+        "fk",
+        "order.id"
+      ],
+      [
+        "line.book_id",
+        "bigint",
+        "fk",
+        "book.id"
+      ],
+      [
+        "line.quantity",
+        "int"
+      ],
+      [
+        "book > author",
+        "many:one",
+        "written by"
+      ],
+      [
+        "order > customer",
+        "many:one",
+        "placed by"
+      ],
+      [
+        "line > order",
+        "many:one",
+        "part of"
+      ],
+      [
+        "line > book",
+        "many:one",
+        "sells"
+      ]
+    ]
+  }
+}
