@@ -51,7 +51,8 @@ project's `.claude/settings.json`:
     "token-hygiene@officina-claude": true,
     "planner-companion@officina-claude": true,
     "diagrams@officina-claude": true,
-    "scenario-matrix@officina-claude": true
+    "scenario-matrix@officina-claude": true,
+    "knowledge@officina-claude": true
   }
 }
 ```
@@ -71,6 +72,7 @@ Plugin skills are namespaced by plugin: type `/session:handoff`, not
 | A plan drifts from what you meant, and reviewing it in the terminal is slow | [`planner-companion`](#planner-companion) |
 | You want a sequence, workflow or ER diagram without Mermaid, a browser or network | [`diagrams`](#diagrams) |
 | Behaviour regressions slip through because nobody lists the scenarios | [`scenario-matrix`](#scenario-matrix) |
+| Claude forgets the project's conventions and repeats mistakes it was already corrected on | [`knowledge`](#knowledge) (`/knowledge:kb`) |
 
 ## Plugins
 
@@ -275,7 +277,7 @@ The line it gets in the digest that every session starts with:
 
 ## Requirements and scope
 
-- `python3` for the hooks and scripts of `session`, `token-hygiene` and `planner-companion`, and `node` for `token-hygiene`, `planner-companion` and `diagrams`. `scenario-matrix` needs no `python3`.
+- `python3` for the hooks and scripts of `session`, `token-hygiene`, `planner-companion` and `knowledge`, and `node` for `token-hygiene`, `planner-companion` and `diagrams`. `scenario-matrix` needs no `python3`.
 - `scenario-matrix` needs `node` 20 or later and `npm` in the target project; the `browser` adapter downloads Chromium.
 - `planner-companion` needs Claude Code 2.1.328 or later. Its page wakes the session through a background
   `Bash` watcher, which was proven on that version and is untested on older ones.
@@ -283,9 +285,10 @@ The line it gets in the digest that every session starts with:
 - Enable `token-hygiene` per project, not at user scope. Its CSVs under `~/.claude/metrics/`
   carry no project column, so a user-scope install mixes every project into one dataset.
 - Per-project state stays in the project: intent files in `.claude/intents/`, paired-role
-  notes in `.claude/handoff.local*.md`, the dashboard in `docs/`. Each session hook acts
-  only on its own trigger (a handoff note written or read), so it stays quiet in a project
-  that never writes one.
+  notes in `.claude/handoff.local*.md`, the dashboard in `docs/`, and the knowledge base in
+  `.claude/knowledge/`, with its per-machine queue and ledger in the gitignored
+  `.claude/knowledge/.local/`. Each session hook acts only on its own trigger (a handoff note
+  written or read), so it stays quiet in a project that never writes one.
 
 ---
 

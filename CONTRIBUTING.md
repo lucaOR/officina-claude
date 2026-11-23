@@ -26,9 +26,10 @@ Path rules that keep a plugin portable:
   self-contained. `planner-companion` gets the renderer this way: `skills/plan/scripts/lib/diagram`
   links to `plugins/diagrams/lib`, and `reference/diagram-rows.md` links to that plugin's row reference.
 
-`scenario-matrix`'s `no-project-names` test keeps project-specific names out of the plugin.
-It reads them from a gitignored `.project-terms` file at the repo root, one term per line,
-and skips that check when the file is absent.
+`scenario-matrix`'s `no-project-names` test keeps project-specific names out of the plugin,
+and `knowledge`'s `scripts/test_skill_refs.py` does the same for every file of that plugin.
+Both read the names from a gitignored `.project-terms` file at the repo root, one term per line,
+and skip that check when the file is absent.
 
 ### Refine eval
 
