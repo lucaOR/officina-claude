@@ -65,7 +65,7 @@ Plugin skills are namespaced by plugin: type `/session:handoff`, not
 
 | Problem | Plugin |
 |---|---|
-| `/compact` summaries lose the thread, or a new session starts cold | [`session`](#session) |
+| `/compact` summaries lose the thread, or a new session starts cold | [`session`](#session) (`/session:handoff`) |
 | A vague idea needs pinning down before anyone writes code | [`session`](#session) (`/session:refine`) |
 | You can't tell which sessions or habits burn your token budget | [`token-hygiene`](#token-hygiene) |
 | A plan drifts from what you meant, and reviewing it in the terminal is slow | [`planner-companion`](#planner-companion) |
