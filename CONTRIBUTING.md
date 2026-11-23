@@ -61,7 +61,9 @@ It writes these files into `.github/assets/`:
 - `dashboard-light.webp` and `dashboard-dark.webp`, a 1280x900 screenshot of the token
   dashboard. The script writes seeded synthetic transcripts for `/demo/bookshop` and runs
   `token-hygiene`'s `SessionEnd` hook and dashboard builder over them. Both run with `HOME` set
-  to a temporary folder, so your own `~/.claude/metrics` never reaches the image.
+  to a temporary folder, so your own `~/.claude/metrics` never reaches the image. They also run
+  with `TZ=UTC` and without any `METRICS_*` variable, so the image is the same wherever you run
+  the script.
 - `social-preview.png`, a 1280x640 screenshot of `src/social.html`. This file is gitignored.
   Upload it by hand in the repository's Settings > General > Social preview.
 
@@ -71,10 +73,13 @@ and their plugin chips.
 
 The screenshots need a headless Chromium. The script uses the binary that `CHROME` names. When
 `CHROME` is unset or names no file, it takes the newest `chromium_headless_shell-*` build in the
-Playwright cache under `~/.cache/ms-playwright`. When it finds neither, it exits before it
-writes any file, so `.github/assets/` stays as it was. It drives the browser over the DevTools
-protocol and sets the colour scheme before each page loads, because the dashboard draws its
-charts on load.
+Playwright cache, which is `~/.cache/ms-playwright` on Linux and `~/Library/Caches/ms-playwright`
+on macOS. Failing that, it looks on `PATH` for `chromium`, `chromium-browser`, `google-chrome`
+and `google-chrome-stable`, in that order. It starts the browser before it writes anything, so
+when it finds none, or the one it finds does not start, it exits with a message and
+`.github/assets/` stays as it was. It drives the browser over the DevTools protocol with a US
+English locale, so the dashboard's dates read the same on every machine. It sets the colour
+scheme before each page loads, because the dashboard draws its charts on load.
 
 The script ends by printing the size of each image and the total of all but
 `social-preview.png`. It exits with an error when that total is over the budget of 1,000,000

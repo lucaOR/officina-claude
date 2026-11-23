@@ -6,18 +6,50 @@ import path from 'node:path';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Playwright's browser cache on Linux and on macOS, and where its headless shell sits inside a
+// chromium_headless_shell-<revision> folder on Linux x64 and arm64 and on macOS x64 and arm64.
+const PLAYWRIGHT_CACHES = [['.cache', 'ms-playwright'], ['Library', 'Caches', 'ms-playwright']];
+const SHELL_DIRS = [
+  'chrome-headless-shell-linux64', 'chrome-headless-shell-linux-arm64',
+  'chrome-headless-shell-mac-x64', 'chrome-headless-shell-mac-arm64',
+];
+// System browsers looked up on PATH, in this order, when Playwright has no headless shell.
+const PATH_BROWSERS = ['chromium', 'chromium-browser', 'google-chrome', 'google-chrome-stable'];
+
+function isExecutableFile(p) {
+  try {
+    if (!fs.statSync(p).isFile()) return false;
+    fs.accessSync(p, fs.constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** CHROME when it names a file, else the newest Playwright headless shell, else a browser on PATH. */
 export function findChrome(env = process.env, home = os.homedir()) {
   if (env.CHROME && fs.existsSync(env.CHROME)) return env.CHROME;
-  const cache = path.join(home, '.cache', 'ms-playwright');
-  let dirs = [];
-  try { dirs = fs.readdirSync(cache); } catch { return null; }
-  const shells = dirs
-    .map((d) => d.match(/^chromium_headless_shell-(\d+)$/))
-    .filter(Boolean)
-    .sort((a, b) => Number(b[1]) - Number(a[1]));
-  for (const [name] of shells) {
-    const p = path.join(cache, name, 'chrome-headless-shell-linux64', 'chrome-headless-shell');
-    if (fs.existsSync(p)) return p;
+  for (const parts of PLAYWRIGHT_CACHES) {
+    const cache = path.join(home, ...parts);
+    let dirs = [];
+    try { dirs = fs.readdirSync(cache); } catch { continue; }
+    const shells = dirs
+      .map((d) => d.match(/^chromium_headless_shell-(\d+)$/))
+      .filter(Boolean)
+      .sort((a, b) => Number(b[1]) - Number(a[1]));
+    for (const [name] of shells) {
+      for (const sub of SHELL_DIRS) {
+        const p = path.join(cache, name, sub, 'chrome-headless-shell');
+        if (fs.existsSync(p)) return p;
+      }
+    }
+  }
+  const dirs = (env.PATH || '').split(path.delimiter).filter(Boolean);
+  for (const name of PATH_BROWSERS) {
+    for (const dir of dirs) {
+      const p = path.join(dir, name);
+      if (isExecutableFile(p)) return p;
+    }
   }
   return null;
 }

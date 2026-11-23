@@ -35,6 +35,53 @@ test('findChrome returns null when nothing exists', () => withTmp((dir) => {
   assert.equal(findChrome({ CHROME: path.join(dir, 'missing') }, dir), null);
 }));
 
+function onPath(dir, name, mode = 0o755) {
+  fs.mkdirSync(dir, { recursive: true });
+  const p = path.join(dir, name);
+  fs.writeFileSync(p, '#!/bin/sh\n');
+  fs.chmodSync(p, mode);
+  return p;
+}
+
+test('findChrome finds the headless shell in the Linux arm64 and macOS Playwright layouts', () => withTmp((dir) => {
+  for (const [cache, sub] of [
+    [['.cache'], 'chrome-headless-shell-linux-arm64'],
+    [['Library', 'Caches'], 'chrome-headless-shell-mac-arm64'],
+    [['Library', 'Caches'], 'chrome-headless-shell-mac-x64'],
+  ]) {
+    const home = path.join(dir, sub);
+    const p = path.join(home, ...cache, 'ms-playwright', 'chromium_headless_shell-1254', sub, 'chrome-headless-shell');
+    fs.mkdirSync(path.dirname(p), { recursive: true });
+    fs.writeFileSync(p, '');
+    assert.equal(findChrome({}, home), p, sub);
+  }
+}));
+
+test('findChrome falls back to a browser on PATH, in a fixed order of names', () => withTmp((dir) => {
+  const first = path.join(dir, 'first');
+  const second = path.join(dir, 'second');
+  onPath(first, 'google-chrome-stable');
+  const chromium = onPath(second, 'chromium');
+  const PATH = [first, second].join(path.delimiter);
+  assert.equal(findChrome({ PATH }, path.join(dir, 'home')), chromium);
+  fs.rmSync(chromium);
+  assert.equal(findChrome({ PATH }, path.join(dir, 'home')), path.join(first, 'google-chrome-stable'));
+}));
+
+test('findChrome skips a browser name on PATH that is not an executable file', () => withTmp((dir) => {
+  const bin = path.join(dir, 'bin');
+  onPath(bin, 'chromium', 0o644);
+  fs.mkdirSync(path.join(bin, 'chromium-browser'));
+  const chrome = onPath(bin, 'google-chrome');
+  assert.equal(findChrome({ PATH: bin }, path.join(dir, 'home')), chrome);
+}));
+
+test('findChrome prefers the Playwright headless shell to a browser on PATH', () => withTmp((dir) => {
+  onPath(path.join(dir, 'bin'), 'chromium');
+  const shell = fakeShell(dir, 1254);
+  assert.equal(findChrome({ PATH: path.join(dir, 'bin') }, dir), shell);
+}));
+
 test('openBrowser captures a webp of the requested size', { skip: !findChrome() }, () => withTmp(async (dir) => {
   const browser = await openBrowser(findChrome());
   try {
