@@ -1,14 +1,14 @@
 // Regenerates the README images: diagram SVGs, plan and dashboard screenshots, and the social preview.
+// Run it as bin/readme-shots; importing it runs it.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { BUDGET } from './budget.mjs';
 import { findChrome, openBrowser } from './cdp.mjs';
 import { renderDiagramAssets } from './diagrams.mjs';
 import { buildDemoPlan } from './plan.mjs';
 import { buildDemoDashboard } from './dashboard.mjs';
-
-export const BUDGET = 1_000_000;
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const assets = path.join(root, '.github', 'assets');
@@ -62,4 +62,6 @@ async function main() {
   }
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) await main();
+// Always run: this file is only ever an entry point. A check that it is the main module
+// compares a resolved path with the typed one, which differs through a symlink.
+await main();

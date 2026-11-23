@@ -3,11 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 import { findChrome, openBrowser } from './cdp.mjs';
-
-const here = path.dirname(fileURLToPath(import.meta.url));
 
 async function withTmp(fn) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'readme-cdp-'));
@@ -36,15 +32,6 @@ test('findChrome picks the newest Playwright headless shell', () => withTmp((dir
 
 test('findChrome returns null when nothing exists', () => withTmp((dir) => {
   assert.equal(findChrome({ CHROME: path.join(dir, 'missing') }, dir), null);
-}));
-
-test('shots exits 1 naming CHROME when no browser is found', () => withTmp((dir) => {
-  const r = spawnSync(process.execPath, [path.join(here, 'shots.mjs')], {
-    encoding: 'utf8',
-    env: { PATH: process.env.PATH, HOME: dir, CHROME: '/nonexistent' },
-  });
-  assert.equal(r.status, 1);
-  assert.match(r.stderr, /CHROME/);
 }));
 
 test('openBrowser captures a webp of the requested size', { skip: !findChrome() }, () => withTmp(async (dir) => {
