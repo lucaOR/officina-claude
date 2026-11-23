@@ -126,3 +126,27 @@ test('the stylesheet is scoped and follows the colour scheme', () => {
   assert.match(css, /@media \(prefers-color-scheme: ?dark\)/);
   assert.equal(render(WF, { scope: '.x' }).css, stylesheet('.x'));
 });
+
+// [classes, types] of a plain descendant selector, enough to compare the rules below.
+const specificity = sel => sel.trim().split(/\s+/).reduce(([c, t], part) =>
+  [c + (part.match(/\.[\w-]+/g) || []).length, t + (/^[a-z]/i.test(part) ? 1 : 0)], [0, 0]);
+const beats = (a, b) => a[0] > b[0] || (a[0] === b[0] && a[1] > b[1]);
+
+test('a scope on the root itself takes the .dg rules onto that root', () => {
+  const css = stylesheet('svg.dg');
+  assert.match(css, /\}svg\.dg\{display:block;/);
+  assert.match(css, /\}svg\.dg text\{fill:var\(--dg-ink\)\}/);
+  assert.doesNotMatch(css, /svg\.dg \.dg[\s{,]/);
+  for (const inner of ['svg.dg .dg-lane text', 'svg.dg .dg-elabel text', 'svg.dg .k-pk text', 'svg.dg .dg-ftype']) {
+    assert.ok(css.includes(`${inner}{`), inner);
+    assert.ok(beats(specificity(inner), specificity('svg.dg text')), `${inner} must beat svg.dg text`);
+  }
+});
+
+test('a scope around the root keeps the .dg rules nested under it', () => {
+  for (const scope of ['.dg-host', '.pl-diagram']) {
+    const css = stylesheet(scope);
+    assert.ok(css.includes(`${scope} .dg{display:block;`), scope);
+    assert.ok(css.includes(`${scope} .dg text{fill:var(--dg-ink)}`), scope);
+  }
+});

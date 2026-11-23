@@ -31,7 +31,7 @@
       "name": "diagrams",
       "source": "./plugins/diagrams",
       "description": "Sequence, workflow and entity-relationship diagrams from compact rows, rendered offline to static SVG with no dependencies.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "category": "productivity"
     },
     {

@@ -40,6 +40,18 @@ test('--out with .svg writes a standalone svg with its styles inside', () => {
   assert.match(svg, /svg\.dg \.dg-node \.dg-shape\{/);
 });
 
+test('--out with .svg styles the root itself, so its text takes the theme ink', () => {
+  const file = spec(WF);
+  const target = join(dirname(file), 'out.svg');
+  assert.equal(run(file, '--out', target).status, 0);
+  const svg = readFileSync(target, 'utf8');
+  assert.match(svg, /^<svg [^>]*class="dg dg-workflow"/);
+  // The root is the svg.dg element, so a rule that needs a .dg element inside it matches nothing.
+  assert.match(svg, /[{}]svg\.dg text\{fill:var\(--dg-ink\)\}/);
+  assert.match(svg, /[{}]svg\.dg\{display:block;[^}]*font-family:/);
+  assert.doesNotMatch(svg, /svg\.dg \.dg[\s{,]/);
+});
+
 test('bad rows fail with the row named and write nothing', () => {
   const file = spec({ ...WF, rows: [['api', 'Start'], ['api > missing']] });
   const r = run(file);

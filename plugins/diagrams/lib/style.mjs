@@ -73,9 +73,19 @@ const RULES = [
   ['.dg-card', 'fill:none;stroke:var(--dg-line);stroke-width:1.5'],
 ];
 
-/** The stylesheet for diagrams placed inside elements matching `scope`. */
+// `.dg` as a whole class name, not the start of `.dg-node` or `.dg-host`.
+const DG = /^\.dg(?![\w-])/;
+
+/**
+ * The stylesheet for diagrams placed inside elements matching `scope`. A scope that names the
+ * `.dg` root itself (a standalone SVG's `svg.dg`) has no `.dg` element inside it, so a rule
+ * rooted at `.dg` joins the scope instead of nesting under it: `.dg text` becomes
+ * `svg.dg text`. Every other rule still nests, which keeps it more specific than those.
+ */
 export function stylesheet(scope) {
-  const scoped = selector => selector.split(',').map(s => `${scope} ${s.trim()}`).join(',');
+  const onRoot = /\.dg(?![\w-])/.test(scope);
+  const scoped = selector => selector.split(',').map(s => s.trim())
+    .map(s => (onRoot && DG.test(s) ? `${scope}${s.slice('.dg'.length)}` : `${scope} ${s}`)).join(',');
   return `${scope}{${vars(0)}}@media (prefers-color-scheme: dark){${scope}{${vars(1)}}}`
     + RULES.map(([selector, body]) => `${scoped(selector)}{${body}}`).join('');
 }

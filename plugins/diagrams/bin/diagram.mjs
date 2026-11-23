@@ -36,7 +36,8 @@ const title = esc(spec?.title || spec?.type || 'Diagram');
 try {
   if (target.endsWith('.svg')) {
     const { svg, css, nodes } = render(spec, { scope: 'svg.dg' });
-    fs.writeFileSync(target, svg.replace(/^<svg[^>]*>/, open => `${open}<style>svg.dg{${FONT}}${css}</style>`));
+    // The scope is the root itself, so the stylesheet's own .dg rules give it the font.
+    fs.writeFileSync(target, svg.replace(/^<svg[^>]*>/, open => `${open}<style>${css}</style>`));
     done({ ok: true, out: target, nodes }, 0);
   }
   const { svg, nodes } = render(spec);
