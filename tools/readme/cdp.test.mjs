@@ -9,9 +9,9 @@ import { findChrome, openBrowser } from './cdp.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-function withTmp(fn) {
+async function withTmp(fn) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'readme-cdp-'));
-  try { return fn(dir); } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+  try { return await fn(dir); } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 }
 
 function fakeShell(home, rev) {
