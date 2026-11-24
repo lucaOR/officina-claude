@@ -170,9 +170,10 @@ class RelayedExcerptTest(unittest.TestCase):
                            "text": "[recall excerpts]\nold cormorant\n[end recall excerpts]"})]
         self.assertEqual(tr.rows(kept), [])
 
-    def test_an_unclosed_marker_hides_the_rest_of_the_block(self):
-        kept = [assistant({"type": "text", "text": "intro [recall excerpts]\nold cormorant"})]
-        self.assertEqual([r[3] for r in tr.rows(kept)], ["intro"])
+    def test_an_unclosed_marker_leaves_the_text_indexed(self):
+        text = "intro [recall excerpts]\nold cormorant"
+        kept = [assistant({"type": "text", "text": text})]
+        self.assertEqual([r[3] for r in tr.rows(kept)], [text])
 
     def test_user_text_with_the_markers_is_still_indexed(self):
         kept = [user("see [recall excerpts] x [end recall excerpts]")]

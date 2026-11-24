@@ -27,7 +27,7 @@ WRAPPERS = ("<command-name>", "<command-message>", "<command-args>", "<local-com
             "<task-notification>")
 COMMAND_ARGS = re.compile(r"<command-args>(.*?)</command-args>", re.S)
 # What the main session wraps around the excerpts it relays, so they are not found again.
-RELAYED = re.compile(r"\[recall excerpts\].*?(?:\[end recall excerpts\]|\Z)", re.S)
+RELAYED = re.compile(r"\[recall excerpts\].*?\[end recall excerpts\]", re.S)
 REMINDER = re.compile(r"<system-reminder>.*?</system-reminder>", re.S)
 
 
