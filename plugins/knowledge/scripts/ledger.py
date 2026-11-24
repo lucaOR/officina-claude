@@ -8,8 +8,8 @@ from pathlib import Path
 import paths
 
 
-def default_path(uc_web: Path) -> Path:
-    return paths.metrics_file(uc_web, "kb-ledger.jsonl")
+def default_path(root: Path) -> Path:
+    return paths.metrics_file(root, "kb-ledger.jsonl")
 
 
 def _key(*parts) -> str:

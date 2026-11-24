@@ -169,13 +169,48 @@ class TestBaseline(unittest.TestCase):
 
 
 class TestBuildCmd(unittest.TestCase):
-    def test_substitutes_uc_web_and_file(self):
-        cmd = check._build_cmd("tool --rule {uc_web}/r.yml {file}", ["app/A.php"], "file", Path("/proj"))
+    def test_substitutes_root_and_file(self):
+        cmd = check._build_cmd("tool --rule {root}/r.yml {file}", ["app/A.php"], "file", Path("/proj"))
         self.assertEqual(cmd, "tool --rule /proj/r.yml app/A.php")
 
     def test_substitutes_files_for_project_scope(self):
         cmd = check._build_cmd("tool {files}", ["a.php", "b.php"], "project", Path("/proj"))
         self.assertEqual(cmd, "tool a.php b.php")
+
+
+class TestRootPlaceholderInServiceCheck(unittest.TestCase):
+    """A service check runs in the service's directory, but `{root}` must still name the
+    project root: rule files such as ast-grep rules live there, not in each service."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        kdir = self.root / ".claude" / "knowledge"
+        kdir.mkdir(parents=True)
+        (kdir / "conv.yaml").write_text(
+            "scope: project\ntopic: conv\nrules:\n"
+            "  - id: count-from-root-file\n"
+            "    title: count read from a file at the project root\n"
+            "    severity: blocking\n"
+            "    applies_to: {services: [svc], globs: ['app/**/*.php']}\n"
+            "    check:\n"
+            "      scope: file\n"
+            "      shell: cat {root}/n.txt\n"
+            "      flag_when: '> 3'\n")
+        (self.root / "n.txt").write_text("5\n")
+        (self.root / "svc" / "app").mkdir(parents=True)
+        (self.root / "svc" / "app" / "A.php").write_text("<?php\n")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_root_is_project_root_not_service_dir(self):
+        proc = subprocess.run(
+            ["python3", str(Path(__file__).with_name("check.py")), "--service", "svc",
+             "--root", str(self.root), "--checks-only", "app/A.php"],
+            capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 1, proc.stdout + proc.stderr)
+        self.assertIn("count-from-root-file", proc.stdout)
 
 
 class TestLedgerRecordFilter(unittest.TestCase):

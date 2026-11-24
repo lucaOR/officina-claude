@@ -56,7 +56,10 @@ Per rule:
    changed files) and runs ONCE for the diff — for cross-file parity / aggregate
    counts. `scope: class` currently behaves as `file` (PHP keeps one class per file).
    `flag_when` compares the command's numeric stdout: one of `>`, `<`, `>=`, `<=`,
-   `==`, `!=` followed by an integer; true = violation.
+   `==`, `!=` followed by an integer; true = violation. The command runs in the
+   project root, or in the service's directory for a service check. `{root}`
+   always expands to the project root, so a path such as an ast-grep rule file
+   kept under the project root resolves the same way from every service.
 - `rationale` — why.
 - `source` — provenance (origin rule file / incident date).
 - edges (optional, lists of FQIDs): `overrides`, `conflicts_with`, `see_also`.

@@ -25,8 +25,8 @@ EVENT_VERDICTS = ("true_positive", "false_positive", "irrelevant")
 MISS_VERDICT = "false_negative"
 
 
-def default_path(uc_web: Path) -> Path:
-    return paths.metrics_file(uc_web, "kb-adjudications.jsonl")
+def default_path(root: Path) -> Path:
+    return paths.metrics_file(root, "kb-adjudications.jsonl")
 
 
 def build_row(event_key: str, fqid: str, verdict: str, ts: str, by: str,

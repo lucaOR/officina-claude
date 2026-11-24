@@ -27,8 +27,8 @@ import ledger
 CHANNELS = ("digest_resident", "jit_delivered", "sweep_surfaced", "cited")
 
 
-def default_path(uc_web: Path) -> Path:
-    return paths.metrics_file(uc_web, "kb-usage.jsonl")
+def default_path(root: Path) -> Path:
+    return paths.metrics_file(root, "kb-usage.jsonl")
 
 
 def build_row(fqid: str, channel: str, ts: str, session, count: int = 1) -> dict:
@@ -41,12 +41,12 @@ def build_row(fqid: str, channel: str, ts: str, session, count: int = 1) -> dict
             "count": count}
 
 
-def record(uc_web, rows: list) -> None:
+def record(root, rows: list) -> None:
     """Append, swallowing every error. Both hook callers run on the critical path — one
     before an edit, one at session start — so a broken or unwritable store must cost
     telemetry and never the thing being instrumented."""
     try:
-        ledger.append(default_path(Path(uc_web)), rows)
+        ledger.append(default_path(Path(root)), rows)
     except Exception:
         pass
 

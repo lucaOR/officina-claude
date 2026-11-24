@@ -25,8 +25,8 @@ import paths
 CAUGHT_BY = ("self", "user")
 
 
-def default_path(uc_web: Path) -> Path:
-    return paths.metrics_file(uc_web, "skill-misses.jsonl")
+def default_path(root: Path) -> Path:
+    return paths.metrics_file(root, "skill-misses.jsonl")
 
 
 def build_row(skill: str, rule: str, caught_by: str, ts: str, session: str,
@@ -41,12 +41,12 @@ def build_row(skill: str, rule: str, caught_by: str, ts: str, session: str,
             "artifact_refs": artifact_refs or []}
 
 
-def record(uc_web, rows: list) -> None:
+def record(root, rows: list) -> None:
     """Append. Deliberately NOT fail-silent — unlike usage.record, this is never called
     from a hook's critical path, only from an explicit, deliberate logging action, so a
     broken store should be loud rather than silently losing the incident it exists to
     preserve."""
-    ledger.append(default_path(Path(uc_web)), rows)
+    ledger.append(default_path(Path(root)), rows)
 
 
 def by_skill(rows: list) -> dict:
@@ -74,9 +74,8 @@ def main():
     ap.add_argument("--session", default="", help="Claude Code session id, if known")
     ap.add_argument("--artifact-ref", action="append", default=[],
                      help="path:line / SHA / transcript ref backing this; repeatable")
-    ap.add_argument("--root", "--uc-web", dest="root", default=None,
-                    help="project root (default: resolved from $CLAUDE_PROJECT_DIR or the cwd); "
-                         "--uc-web is a legacy alias")
+    ap.add_argument("--root", default=None,
+                    help="project root (default: resolved from $CLAUDE_PROJECT_DIR or the cwd)")
     a = ap.parse_args()
     root = paths.project_root(a.root)
     if paths.skip_without_knowledge(root, "skill_misses"):

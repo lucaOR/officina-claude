@@ -72,16 +72,17 @@ def _git_state(root: Path):
     return one("rev-parse", "--abbrev-ref", "HEAD"), one("rev-parse", "--short", "HEAD")
 
 
-def _build_cmd(shell: str, targets: list, scope: str, root: Path) -> str:
-    """Substitute {uc_web} (repo root — for tooling/rule-file paths like ast-grep rules),
-    then {file}/{files}."""
-    shell = shell.replace("{uc_web}", str(root))
+def _build_cmd(shell: str, targets: list, scope: str, project_root: Path) -> str:
+    """Substitute {root} (the project root, also in a service check that runs in the
+    service's directory — for tooling/rule-file paths like ast-grep rules), then
+    {file}/{files}."""
+    shell = shell.replace("{root}", str(project_root))
     if scope == "project":
         return shell.replace("{files}", " ".join(targets))
     return shell.replace("{file}", targets[0])
 
 
-def _baseline_count(check: dict, root: Path, label_paths: list, ref: str):
+def _baseline_count(check: dict, root: Path, label_paths: list, ref: str, project_root: Path):
     """Count for the same check at `ref`. None => baseline unavailable; _eval_check then falls back to the absolute flag verdict.
     Paths absent in ref (new files) contribute nothing; all-absent => 0."""
     if not _is_git_repo(root):
@@ -100,7 +101,7 @@ def _baseline_count(check: dict, root: Path, label_paths: list, ref: str):
             base_paths.append(tf.name)
         if not base_paths:
             return 0
-        cmd = _build_cmd(check["shell"], base_paths, check.get("scope", "file"), root)
+        cmd = _build_cmd(check["shell"], base_paths, check.get("scope", "file"), project_root)
         return _run_count(cmd, root)
     finally:
         for t in tmps:
@@ -123,15 +124,15 @@ def _worsened(flag_when: str, working: int, base: int) -> bool:
     return True
 
 
-def _eval_check(check: dict, root: Path, label_paths: list, baseline):
+def _eval_check(check: dict, root: Path, label_paths: list, baseline, project_root: Path):
     """Outcome (fail/pass/inconclusive) for one check. In baseline mode, fail only when the
     working count flags AND exceeds the baseline count (introduced or worsened)."""
-    cmd = _build_cmd(check["shell"], label_paths, check.get("scope", "file"), root)
+    cmd = _build_cmd(check["shell"], label_paths, check.get("scope", "file"), project_root)
     working = _run_count(cmd, root)
     flag = _flags(working, check.get("flag_when", ""))
     if not baseline or flag is not True:
         return _outcome(flag)
-    base = _baseline_count(check, root, label_paths, baseline)
+    base = _baseline_count(check, root, label_paths, baseline, project_root)
     if base is None:
         return _outcome(flag)
     return "fail" if _worsened(check.get("flag_when", ""), working, base) else "pass"
@@ -145,7 +146,8 @@ def _outcome(result):
     return "inconclusive"
 
 
-def evaluate(root: Path, files: list, service, rules: list, baseline=None, include_sweep_only=False):
+def evaluate(root: Path, files: list, service, rules: list, baseline=None, include_sweep_only=False,
+             project_root=None):
     """Full census: [(Rule, label, outcome)] for every matched rule. Pass rules already
     resolved via lib.resolve_overrides. With `baseline` (a git ref), count-checks report a
     violation only when the change introduced/worsened it. outcome in {reminder, pass, fail,
@@ -157,7 +159,10 @@ def evaluate(root: Path, files: list, service, rules: list, baseline=None, inclu
     on-edit hook, inject-rules-on-edit.py, does not run this engine at all: it calls
     lib.file_matches() directly with include_sweep_only=True, because a rule's BODY still
     helps at authoring time even when its reminder has been deferred to review. `no_jit` is
-    the opt-out over there, and it does not reach this function."""
+    the opt-out over there, and it does not reach this function. `project_root` is what a
+    check's {root} names; it defaults to `root`, which is the same directory unless this is
+    a service check."""
+    project_root = project_root or root
     records = []
     for r in rules:
         matched = [f for f in files if lib.file_matches(r, f, service, include_sweep_only)]
@@ -167,10 +172,10 @@ def evaluate(root: Path, files: list, service, rules: list, baseline=None, inclu
             records.extend((r, f, "reminder") for f in matched)
             continue
         if r.check.get("scope", "file") == "project":
-            records.append((r, ", ".join(matched), _eval_check(r.check, root, matched, baseline)))
+            records.append((r, ", ".join(matched), _eval_check(r.check, root, matched, baseline, project_root)))
             continue
         for f in matched:                       # "file" or "class" (PHP: one class per file)
-            records.append((r, f, _eval_check(r.check, root, [f], baseline)))
+            records.append((r, f, _eval_check(r.check, root, [f], baseline, project_root)))
     return records
 
 
@@ -255,7 +260,7 @@ def main():
     rules = lib.load_all(roots)
     effective, conflicts = lib.resolve_overrides(rules, a.service)
     records = evaluate(eval_root, a.files, a.service, effective, baseline=a.baseline,
-                       include_sweep_only=a.include_sweep_only)
+                       include_sweep_only=a.include_sweep_only, project_root=root)
     violations, reminders = partition(records)
     printed_reminders = [] if a.checks_only else reminders
 

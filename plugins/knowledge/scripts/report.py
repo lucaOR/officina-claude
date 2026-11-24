@@ -315,13 +315,13 @@ def digest_rent_path(root) -> Path:
     return paths.metrics_file(root, "kb-digest-rent.jsonl")
 
 
-def rent_summary(uc_web, service=None, days=None, since=None) -> dict:
+def rent_summary(root, service=None, days=None, since=None) -> dict:
     """Total injected digest bytes, split by SessionStart source.
 
     Read from the store rather than derived from the digest size, because the digest is
     appended only on the startup/clear branch — see inject-knowledge-digest.py."""
     rows = filter_rows(ledger.load_ledger(
-        digest_rent_path(uc_web)), service, days, since=since)
+        digest_rent_path(root)), service, days, since=since)
     per_source, total = {}, 0
     for row in rows:
         n = int(row.get("bytes") or 0)
