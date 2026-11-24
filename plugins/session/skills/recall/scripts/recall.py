@@ -47,7 +47,7 @@ from lineage import SESSION_ID_RE, find_transcript, projects_root, search_dirs  
 RETENTION_DAYS = 180
 MAX_HITS = 40
 SNIPPET = 300
-WIDEN_BELOW = 5          # tier 2 is searched when tier 1 has fewer distinct matching rows
+WIDEN_BELOW = 5          # tier 2 is searched when the earlier chain sessions have fewer matching rows
 LOCK_WAIT = 5.0          # seconds the bounded ingest in search waits for the lock
 NOTE_WEIGHT = 2.0        # bm25 is negative, lower ranks first, so a note's score is doubled
 SHOW_CONTEXT = 3
@@ -594,7 +594,11 @@ def run_search(ix, wordings, session, slug, depth, everything):
     counts = dict(ix.db.execute(
         f"SELECT tier.tier, count(*) FROM block JOIN tier ON tier.sid = block.sid "
         f"WHERE {where} GROUP BY tier.tier", params).fetchall())
-    top = 3 if everything else (1 if counts.get(1, 0) >= WIDEN_BELOW else 2)
+    # The asking session repeats its own question, so only its earlier chain sessions count.
+    earlier = ix.db.execute(
+        f"SELECT count(*) FROM block JOIN tier ON tier.sid = block.sid "
+        f"WHERE {where} AND tier.tier = 1 AND tier.back > 0", params).fetchone()[0]
+    top = 3 if everything else (1 if earlier >= WIDEN_BELOW else 2)
     if ix.fts:
         text, score = "snippet(block, 0, '[', ']', '…', 40)", \
             f"bm25(block) * (CASE block.role WHEN 'note' THEN {NOTE_WEIGHT} ELSE 1.0 END)"

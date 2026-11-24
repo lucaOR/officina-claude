@@ -379,6 +379,18 @@ class SearchTest(Base):
         self.assertFalse(any(h.startswith("T2") for h in self.hit_lines(self.search(sid(2), "lantern"))))
         self.assertTrue(any(h.startswith("T2") for h in self.hit_lines(self.search(sid(5), "lantern"))))
 
+    def test_asking_session_rows_do_not_hold_the_search_in_tier_1(self):
+        # The asking session repeats its own question, so its rows must not count as the chain
+        # having enough matches; they still show up as its own tier 1 hits.
+        write_session(self.pdir, sid(1), [("start", "ok")])
+        write_session(self.pdir, sid(2), [(f"what about the lantern {i}?", "looking") for i in range(5)],
+                      parent=sid(1))
+        write_session(self.pdir, sid(3), [("the lantern fix was a flag", "ok")])
+        self.ingest()
+        hits = self.hit_lines(self.search(sid(2), "lantern"))
+        self.assertTrue(any(h.startswith("T2") and sid(3) in h for h in hits), hits)
+        self.assertTrue(any(h.startswith("T1 this session") for h in hits), hits)
+
     def test_other_projects_only_with_all(self):
         other = self.projects / "-work-other"
         write_session(other, sid(9), [("the quokka", "ok")])
