@@ -22,11 +22,17 @@ If the prompt does not start with `RECALL v1` or names no script, stop and say s
 1. Think of two or three other wordings of the query: synonyms, the command or file name it
    would involve, the error text it would print. The search matches words, not meaning, so these
    wordings stand in for search by meaning.
-2. Run the search once, with the query and your wordings as separate quoted arguments. Always
-   pass the project with `=`, because a directory name can start with `-`:
+2. Run the search once. Put the query and each of your wordings on its own line between the
+   heredoc delimiters, and never on the command line, because a query with a backtick or `$(`
+   would run as a command in your shell. Keep the delimiter quoted exactly as shown. Always pass
+   the project with `=`, because a directory name can start with `-`:
 
    ```bash
-   python3 "<script>" search --session <session> --project=<project> [options] "<query>" "<wording 2>" "<wording 3>"
+   python3 "<script>" search --session <session> --project=<project> [options] --stdin <<'RECALL_WORDINGS'
+   <query>
+   <wording 2>
+   <wording 3>
+   RECALL_WORDINGS
    ```
 
    Leave out `--session` or `--project=` when the prompt left it empty.

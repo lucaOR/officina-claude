@@ -303,6 +303,32 @@ class SearchTest(Base):
         self.assertEqual(len(self.hit_lines(out)), 2)
         self.assertIn("results may be incomplete", out)
 
+    def test_wordings_come_from_stdin_one_per_line(self):
+        write_session(self.pdir, sid(1), [("the `$(id)` quirk with gnu", "ok"), ("a heron", "ok")])
+        self.ingest()
+        code, out = self.cli("search", "--session", sid(1), f"--project={SLUG}", "--stdin",
+                             stdin="heron\n\n  `$(id)` quirk  \n")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(len(self.hit_lines(out)), 2, out)
+        self.assertIn('"heron" | "`$(id)` quirk"', out)
+
+    def test_positional_wordings_still_work_and_add_to_stdin(self):
+        write_session(self.pdir, sid(1), [("a heron", "ok"), ("an egret", "ok")])
+        self.ingest()
+        code, out = self.cli("search", "--session", sid(1), f"--project={SLUG}", "--stdin",
+                             "heron", stdin="egret\n")
+        self.assertEqual(len(self.hit_lines(out)), 2, out)
+
+    def test_a_search_with_no_wording_at_all_is_a_usage_error(self):
+        with self.assertRaises(SystemExit):
+            with contextlib.redirect_stderr(io.StringIO()):
+                self.cli("search", "--session", sid(1))
+
+    def test_the_agent_passes_the_wordings_through_a_quoted_heredoc(self):
+        agent = (HERE.parents[2] / "agents" / "recall.md").read_text(encoding="utf-8")
+        self.assertIn("--stdin <<'RECALL_WORDINGS'", agent)
+        self.assertNotIn('"<query>" "<wording 2>"', agent)
+
     def test_without_fts5_the_search_scans_and_says_so(self):
         os.environ["RECALL_NO_FTS5"] = "1"
         write_session(self.pdir, sid(1), [("plain Gecko", "ok")])

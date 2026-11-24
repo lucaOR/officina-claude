@@ -3,7 +3,7 @@
 
 Subcommands:
   whoami                 print this session's id and transcript directory, for the subagent
-  search WORDING...      search the chain (tier 1), then the project (tier 2), --all: everything
+  search [--stdin] [WORDING...]  search the chain (tier 1), then the project (tier 2), --all: everything
   show SESSION POS       print the archived exchange around one hit, tool results in full
   forget SESSION|this    delete a session from the archive and skip it from now on
   ingest --project DIR   archive and index one transcript directory (the detached startup job)
@@ -676,8 +676,12 @@ def main(argv=None):
     s.add_argument("--project")
     s.add_argument("--depth", type=int)
     s.add_argument("--all", action="store_true")
-    s.add_argument("words", nargs="+")
+    s.add_argument("--stdin", action="store_true",
+                   help="also read wordings from stdin, one per line, so a query never passes "
+                        "through the shell")
+    s.add_argument("words", nargs="*")
     s.set_defaults(fn=cmd_search)
+    search_parser = s
     s = sub.add_parser("show")
     s.add_argument("session")
     s.add_argument("pos")
@@ -696,6 +700,11 @@ def main(argv=None):
     s.set_defaults(fn=cmd_whoami)
     sub.add_parser("hook").set_defaults(fn=cmd_hook)
     args = p.parse_args(argv)
+    if args.cmd == "search":
+        if args.stdin:
+            args.words += [line.strip() for line in sys.stdin.read().splitlines() if line.strip()]
+        elif not args.words:
+            search_parser.error("give at least one wording, or --stdin")
     old = os.umask(0o077)
     try:
         return args.fn(args)
