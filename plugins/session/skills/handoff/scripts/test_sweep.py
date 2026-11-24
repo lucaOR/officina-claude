@@ -77,6 +77,61 @@ class SweepOneTest(unittest.TestCase):
         self.assertFalse(marker.exists())
 
 
+class ArchiveGateTest(unittest.TestCase):
+    """Once /session:recall has run on this machine, a read note goes only after it is archived."""
+
+    def setUp(self):
+        self.home = Path(tempfile.mkdtemp())
+        self.repo = Path(tempfile.mkdtemp())
+        (self.repo / ".claude").mkdir()
+        self._env = mock.patch.dict(os.environ, {
+            "HOME": str(self.home), "CLAUDE_PROJECT_DIR": str(self.repo)})
+        self._env.start()
+        os.environ.pop("RECALL_HOME", None)
+        self.addCleanup(self._env.stop)
+        self.handoff = self.home / ".claude" / "handoff"
+        self.handoff.mkdir(parents=True)
+        self.archived = self.home / ".claude" / "recall" / "notes"
+
+    def read_note(self, folder: Path, name: str) -> Path:
+        note = folder / name
+        touch(note)
+        touch(note.with_name(name + ".consumed"), age_seconds=sweep.GRACE_SECONDS + 60)
+        return note
+
+    def test_without_a_recall_directory_the_sweep_behaves_as_before(self):
+        note = self.read_note(self.handoff, "abc.md")
+        sweep.sweep_one(note, time.time())
+        self.assertFalse(note.exists())
+
+    def test_read_note_without_an_archive_copy_stays(self):
+        self.archived.mkdir(parents=True)
+        note = self.read_note(self.handoff, "abc.md")
+        sweep.sweep_one(note, time.time())
+        self.assertTrue(note.exists())
+        self.assertTrue(note.with_name("abc.md.consumed").exists())
+
+    def test_read_note_with_an_archive_copy_is_deleted(self):
+        self.archived.mkdir(parents=True)
+        touch(self.archived / "abc.md")
+        note = self.read_note(self.handoff, "abc.md")
+        sweep.sweep_one(note, time.time())
+        self.assertFalse(note.exists())
+
+    def test_read_note_with_a_skip_marker_is_deleted(self):
+        self.archived.mkdir(parents=True)
+        touch(self.archived / "abc.skip")
+        note = self.read_note(self.handoff, "abc.md")
+        sweep.sweep_one(note, time.time())
+        self.assertFalse(note.exists())
+
+    def test_paired_session_notes_keep_the_old_rule(self):
+        self.archived.mkdir(parents=True)
+        note = self.read_note(self.repo / ".claude", "handoff.local.worker.md")
+        sweep.sweep_one(note, time.time())
+        self.assertFalse(note.exists())
+
+
 class WiringTest(unittest.TestCase):
     """A hook not registered in the plugin's hooks/hooks.json never runs."""
 

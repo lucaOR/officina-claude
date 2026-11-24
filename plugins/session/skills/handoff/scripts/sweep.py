@@ -17,6 +17,13 @@ Two locations, matching mark-handoff-consumed.py's is_handoff_note():
   - ~/.claude/handoff/*.md
   - <repo>/.claude/handoff.local*.md
 
+Once /session:recall has run on this machine (its directory exists), a note under
+~/.claude/handoff is deleted only when recall's ingest has archived it (notes/<id>.md)
+or marked it as not to be archived (notes/<id>.skip). The sweep never works out which
+project a note belongs to; it only checks for that copy. A note without one waits for
+an ingest in its own project. Paired-session handoff.local*.md notes keep the old rule,
+because recall does not archive them.
+
 Fail-open and silent: this is mechanical housekeeping, not something worth a
 line of context on every startup, and one file that fails to delete (e.g. a
 permissions hiccup) must never stop the others from being swept.
@@ -38,6 +45,20 @@ def candidates():
         yield from claude_dir.glob("handoff.local*.md")
 
 
+def recall_dir() -> Path:
+    return Path(os.environ.get("RECALL_HOME") or Path.home() / ".claude" / "recall")
+
+
+def archived(note: Path) -> bool:
+    """True when recall is absent, the note is not recall's to archive, or it holds a copy."""
+    if note.parent != Path.home() / ".claude" / "handoff":
+        return True     # handoff.local*.md: recall never archives these
+    notes = recall_dir() / "notes"
+    if not recall_dir().is_dir():
+        return True     # recall never ran on this machine: the old rule applies
+    return (notes / note.name).is_file() or (notes / f"{note.stem}.skip").is_file()
+
+
 def sweep_one(note: Path, now: float) -> None:
     marker = note.with_name(note.name + ".consumed")
     try:
@@ -45,6 +66,8 @@ def sweep_one(note: Path, now: float) -> None:
             return
     except OSError:
         return          # never marked consumed (or already gone): leave it
+    if not archived(note):
+        return          # recall has not copied it yet: wait for an ingest in its project
     for path in (note, marker):
         try:
             path.unlink()
