@@ -426,6 +426,66 @@ class ForgetTest(Base):
         self.assertEqual(self.hit_lines(self.search(sid(1), "okapi")), [])
 
 
+class ChainTest(Base):
+    """A chain walk must pass through a session whose content is gone."""
+
+    def make_chain(self):
+        write_session(self.pdir, sid(1), [("the ancient lemur", "ok")])
+        write_session(self.pdir, sid(2), [("middle step", "ok")], parent=sid(1))
+        write_session(self.pdir, sid(3), [("latest step", "ok")], parent=sid(2))
+        self.ingest()
+
+    def assert_reaches_the_root(self):
+        hits = self.hit_lines(self.search(sid(3), "lemur"))
+        self.assertEqual(len(hits), 1, hits)
+        self.assertTrue(hits[0].startswith("T1 2 back"), hits[0])
+
+    def assert_middle_is_content_free(self):
+        self.assertEqual(self.hit_lines(self.search(sid(3), "middle")), [])
+        ix = recall.Index()
+        row = ix.db.execute("SELECT project, parent, title, goal, note, excluded, row_lo "
+                            "FROM session WHERE id = ?", (sid(2),)).fetchone()
+        self.assertEqual(row, (SLUG, sid(1), None, None, None, 1, None))
+
+    def test_forget_keeps_the_id_and_parent_link(self):
+        self.make_chain()
+        self.cli("forget", sid(2))
+        self.assert_reaches_the_root()
+        self.assert_middle_is_content_free()
+
+    def test_forget_without_an_index_row_recovers_the_parent_from_the_transcript(self):
+        self.make_chain()
+        for f in self.store.glob("index.sqlite*"):
+            f.unlink()
+        self.cli("forget", sid(2))
+        self.assertEqual(recall.read_marker(sid(2)), {"parent": sid(1), "project": SLUG})
+        self.assertEqual(self.cli("rebuild")[0], 0)
+        self.assert_reaches_the_root()
+        self.assert_middle_is_content_free()
+
+    def test_a_denied_session_that_grows_stays_a_link(self):
+        self.make_chain()
+        self.cli("forget", sid(2))
+        write_session(self.pdir, sid(2), [("middle step", "ok"), ("more", "ok")], parent=sid(1))
+        self.ingest()
+        self.assert_reaches_the_root()
+        self.assert_middle_is_content_free()
+
+    def test_rebuild_recreates_the_links_of_forgotten_and_skipped_sessions(self):
+        write_session(self.pdir, sid(1), [("the ancient lemur", "ok")])
+        write_session(self.pdir, sid(2), [("middle [recall:skip]", "ok")], parent=sid(1))
+        write_session(self.pdir, sid(3), [("latest step", "ok")], parent=sid(2))
+        write_session(self.pdir, sid(4), [("forgotten step", "ok")], parent=sid(3))
+        write_session(self.pdir, sid(5), [("newest step", "ok")], parent=sid(4))
+        self.ingest()
+        self.cli("forget", sid(4))
+        self.assertEqual(self.cli("rebuild")[0], 0)
+        hits = self.hit_lines(self.search(sid(5), "lemur"))
+        self.assertEqual(len(hits), 1, hits)
+        self.assertTrue(hits[0].startswith("T1 4 back"), hits[0])
+        self.assertEqual(self.hit_lines(self.search(sid(5), "forgotten")), [])
+
+
 class RebuildTest(Base):
     def test_rebuild_does_not_bring_back_a_forgotten_session(self):
         write_session(self.pdir, sid(1), [("the dugong", "ok")])

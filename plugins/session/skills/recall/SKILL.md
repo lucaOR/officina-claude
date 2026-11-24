@@ -56,8 +56,11 @@ Run it in the main session and relay the line it prints:
 python3 "${CLAUDE_SKILL_DIR}/scripts/recall.py" forget <session-id|this>
 ```
 
-It deletes the session's archive copy, note copy and index rows, and later ingests skip it. The
-original transcript stays until Claude Code's own cleanup deletes it, and the output says so.
+It deletes the session's archive copy, note copy and index rows, and later ingests skip it. Its id
+and its link to its parent stay, so a chain walk passes through the session to the sessions
+before it; the content is gone. The same holds for a session marked `[recall:skip]`, and a rebuild
+restores both kinds of link. The original transcript stays until Claude Code's own cleanup
+deletes it, and the output says so.
 
 ## What gets archived
 

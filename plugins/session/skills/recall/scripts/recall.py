@@ -132,10 +132,24 @@ def notes_dir() -> Path:
     return d
 
 
-def mark_skip(sid, always=False):
-    """Tell the sweep a note will never be archived, so it may delete it once read."""
+def mark_skip(sid, always=False, parent=None, slug=None):
+    """Tell the sweep a note will never be archived, so it may delete it once read.
+
+    The marker also records the session's parent and project, so a rebuild can recreate the
+    excluded row that keeps the chain walk passing through the session.
+    """
     if always or handoff_note(sid).is_file():
-        (notes_dir() / f"{sid}.skip").touch()
+        marker = notes_dir() / f"{sid}.skip"
+        if parent or slug or not marker.exists():
+            marker.write_text(json.dumps({"parent": parent, "project": slug}), encoding="utf-8")
+
+
+def read_marker(sid) -> dict:
+    try:
+        data = json.loads((store() / "notes" / f"{sid}.skip").read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
 
 
 def project_dir(value) -> Path:
@@ -233,10 +247,15 @@ class Index:
         return r[0] if r else None
 
 
-def drop_session(ix, sid, slug=None):
-    """Remove a session from the index, the archive and the note copies."""
-    r = ix.db.execute("SELECT project FROM session WHERE id = ?", (sid,)).fetchone()
+def drop_session(ix, sid, slug=None, exclude=False, parent=None):
+    """Remove a session from the index, the archive and the note copies.
+
+    With exclude, an excluded row (id, project and parent only) and a .skip marker stay, so the
+    chain walk passes through the session although its content is gone.
+    """
+    r = ix.db.execute("SELECT project, parent FROM session WHERE id = ?", (sid,)).fetchone()
     slug = slug or (r[0] if r else None)
+    parent = parent or (r[1] if r else None)
     ix.drop_rows(sid)
     ix.db.execute("DELETE FROM session WHERE id = ?", (sid,))
     # With no index row the project is unknown, so every project's archive is searched for it.
@@ -245,6 +264,16 @@ def drop_session(ix, sid, slug=None):
         (adir / f"{sid}.jsonl.gz").unlink(missing_ok=True)
         shutil.rmtree(adir / sid, ignore_errors=True)
     (store() / "notes" / f"{sid}.md").unlink(missing_ok=True)
+    if exclude:
+        f = find_transcript(sid)
+        if f and not (parent and slug):
+            parent = parent or tr.meta(tr.keep(tr.read_entries(f)))["parent"]
+            slug = slug or f.parent.name
+        marker = read_marker(sid)
+        parent, slug = parent or marker.get("parent"), slug or marker.get("project")
+        if slug:
+            ix.put(sid, slug, {"parent": parent}, [], excluded=True)
+        mark_skip(sid, always=True, parent=parent, slug=slug)
 
 
 def copy_note(sid):
@@ -303,7 +332,12 @@ def ingest_session(ix, state, f: Path):
     sig = signature(f, sid)
     if state["sessions"].get(sid) == sig:
         return
-    if sid in denied() or slug in optouts():
+    if sid in denied():
+        drop_session(ix, sid, slug, exclude=True,
+                     parent=tr.meta(tr.keep(tr.read_entries(f)))["parent"])
+        state["sessions"][sid] = sig
+        return
+    if slug in optouts():
         drop_session(ix, sid)
         mark_skip(sid)
         state["sessions"][sid] = sig
@@ -311,9 +345,7 @@ def ingest_session(ix, state, f: Path):
     kept = tr.keep(tr.read_entries(f))
     meta = tr.meta(kept)
     if meta["skip"]:
-        drop_session(ix, sid, slug)
-        ix.put(sid, slug, meta, [], excluded=True)     # kept so the chain walk passes through
-        mark_skip(sid)
+        drop_session(ix, sid, slug, exclude=True, parent=meta["parent"])
         state["sessions"][sid] = sig
         return
     adir = store() / "archive" / slug
@@ -595,10 +627,9 @@ def cmd_forget(args):
             print("recall: an ingest is running; try again in a minute")
             return 1
         ix = Index()
-        drop_session(ix, target)
+        drop_session(ix, target, exclude=True)
         ix.db.commit()
         save_json("deny.json", sorted(denied() | {target}))
-        mark_skip(target, always=True)
     f = find_transcript(target)
     where = f"at {f} " if f else ""
     print(f"recall: forgot {target}. Its archive copy, note copy and index rows are deleted, and "
@@ -629,6 +660,11 @@ def cmd_rebuild(args):
             copy, extra, goal = note_rows(sid, meta)
             ix.put(sid, slug, meta, rows + extra, copy, goal)
             count += 1
+        for marker in sorted((store() / "notes").glob("*.skip")):
+            sid, info = marker.stem, read_marker(marker.stem)
+            if SESSION_ID_RE.match(sid) and info.get("project") and info["project"] not in optedout \
+                    and not ix.db.execute("SELECT 1 FROM session WHERE id = ?", (sid,)).fetchone():
+                ix.put(sid, info["project"], {"parent": info.get("parent")}, [], excluded=True)
         ix.db.commit()
     print(f"recall: rebuilt the index from {count} archived sessions")
     return 0
