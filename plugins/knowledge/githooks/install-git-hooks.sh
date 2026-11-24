@@ -29,7 +29,11 @@ fi
 
 for name in pre-commit post-commit; do
   if [ -e "$hooks/$name" ] && ! grep -q "$marker" "$hooks/$name"; then
-    echo "knowledge: $hooks/$name already exists and is not ours; leaving it untouched" >&2
+    case $name in
+      pre-commit) gate="pre-commit-knowledge.sh" ;;
+      *) gate="postcommit.py" ;;
+    esac
+    echo "knowledge: $hooks/$name already exists and is not ours; leaving it untouched. Call \"$here/$gate\" from your own $name hook instead." >&2
     exit 1
   fi
 done

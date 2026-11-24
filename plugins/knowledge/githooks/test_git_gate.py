@@ -133,6 +133,19 @@ class TestGate(GateCase):
         self.assertEqual(proc.returncode, 1)
         self.assertEqual(foreign.read_text(), "#!/bin/sh\necho mine\n")
 
+    def test_foreign_hook_refusal_names_the_script_to_call_from_it(self):
+        hooks = self.hooks_dir()
+        hooks.mkdir(parents=True, exist_ok=True)
+        wanted = {"pre-commit": "pre-commit-knowledge.sh", "post-commit": "postcommit.py"}
+        for name, script in wanted.items():
+            for other in wanted:
+                (hooks / other).unlink(missing_ok=True)
+            (hooks / name).write_text("#!/bin/sh\necho mine\n")
+            proc = self.install()
+            self.assertEqual(proc.returncode, 1)
+            self.assertIn(f"Call \"{K / 'githooks' / script}\" from your own {name} hook instead",
+                          proc.stderr)
+
     def test_install_refuses_a_hooks_dir_inside_the_work_tree(self):
         # core.hooksPath pointing at a tracked directory (husky): a shim there would commit
         # this machine's absolute plugin path into the repository.
