@@ -87,6 +87,15 @@ class GuardTest(unittest.TestCase):
         self.assertDenied(py("show", "abc 1") + " > /tmp/x")
         self.assertDenied(py("show", "abc 1") + " < /tmp/x")
 
+    def test_denies_substitution_in_the_script_path(self):
+        # realpath drops `<x>/..` as text, so the path alone would still match the real script,
+        # while bash runs the substitution inside the double quotes.
+        here = str(SCRIPT.parent)
+        self.assertDenied(py("search", "foo", path=here + "/$(id)/../recall.py"))
+        self.assertDenied(py("show", "abc 1", path=here + "/`id`/../recall.py"))
+        self.assertDenied(py("show", "abc 1", path=here + "/${HOME}/../recall.py"))
+        self.assertDenied(py("show", "abc 1", path=here + "/\\x/../recall.py"))
+
     def test_denies_other_recall_py(self):
         self.assertDenied(py("show", "abc 1", path="/tmp/recall.py"))
         self.assertDenied(py("show", "abc 1", path=str(SCRIPT) + "/../recall.py.evil"))

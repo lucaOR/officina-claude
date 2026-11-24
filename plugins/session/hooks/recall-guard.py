@@ -23,8 +23,10 @@ AGENT = "session:recall"
 DELIM = "RECALL_WORDINGS"
 SCRIPT = os.path.realpath(os.path.join(
     os.path.dirname(os.path.realpath(__file__)), "..", "skills", "recall", "scripts", "recall.py"))
+# The path takes only characters bash leaves alone inside double quotes: realpath drops `<x>/..`
+# as text, so `$(…)`, backticks or `\` in the path would still match the script and then run.
 FIRST = re.compile(
-    r'^python3 "([^"]+)" (search|show)((?: [A-Za-z0-9_.=:/-]+)*)( <<\'' + DELIM + r"')?$")
+    r'^python3 "([A-Za-z0-9_.,:/+@ -]+)" (search|show)((?: [A-Za-z0-9_.=:/-]+)*)( <<\'' + DELIM + r"')?$")
 REASON = "recall agent may run only recall.py search or show; this call was blocked"
 
 
