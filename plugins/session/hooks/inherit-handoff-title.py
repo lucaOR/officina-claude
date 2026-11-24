@@ -14,19 +14,20 @@ No-op on any prompt without the sentinel. Fail-open: a title that cannot be read
 the prompt that triggered the hook.
 """
 import json
-import re
 import sys
+from pathlib import Path
 
 from session_title import last_title, parent_transcript
 
-SENTINEL = re.compile(r"HANDOFF v1\b[^\n]*?\bparent=([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})")
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "lib"))
+from lineage import parent_from_prompt  # noqa: E402
 
 
 def title_for(prompt: str, transcript_path: str) -> str | None:
-    m = SENTINEL.search(prompt or "")
-    if not m or not transcript_path:
+    parent = parent_from_prompt(prompt)
+    if not parent or not transcript_path:
         return None
-    return last_title(parent_transcript(transcript_path, m.group(1)))
+    return last_title(parent_transcript(transcript_path, parent))
 
 
 def main() -> None:

@@ -17,18 +17,15 @@ The note's own path is printed too, so the skill never constructs it and two
 sessions never write the same file.
 """
 import os
-import re
 import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "lib"))
+from lineage import SESSION_ID_RE, find_transcript, project_slug, search_dirs  # noqa: E402,F401
+
 MAX_CHANGED = 20
-# Mirrors the metrics hook's sentinel regex, `parent=([0-9a-fA-F-]{8,})` in
-# record-session-metrics.js. An id that fails this cannot be recorded no matter
-# how the note is written, so an id shaped like anything else is not an id worth
-# printing. It also keeps a separator out of the filename built from it below.
-SESSION_ID_RE = re.compile(r"^[0-9a-fA-F-]{8,}$")
 
 
 def git(*args):
@@ -39,34 +36,6 @@ def git(*args):
         return out.stdout.strip()
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
         return ""
-
-
-def project_slug():
-    root = os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
-    return str(root).replace("/", "-").replace(".", "-")
-
-
-def search_dirs():
-    """Transcript directories to search, most likely first.
-
-    The harness keys a transcript directory on the project root the session
-    STARTED in, which is not always the current working directory. A session
-    started in the main checkout keeps writing under the main checkout's slug
-    even after it moves into a worktree, while a session started inside the
-    worktree writes under the worktree's own slug. Deriving the directory from
-    cwd is therefore wrong in one of those two cases, and wrong silently: the
-    directory exists, holds real transcripts, and yields a real but unrelated
-    session id. So the slug is only an ordering hint here, and every project
-    directory stays searchable.
-    """
-    override = os.environ.get("HANDOFF_TRANSCRIPT_DIR")
-    if override:
-        return [Path(override)]
-    projects = Path.home() / ".claude" / "projects"
-    first = projects / project_slug()
-    if not projects.is_dir():
-        return [first]
-    return [first, *sorted(p for p in projects.iterdir() if p.is_dir() and p != first)]
 
 
 def locate_transcript():
@@ -87,14 +56,12 @@ def locate_transcript():
     sid = os.environ.get("CLAUDE_CODE_SESSION_ID")
     if sid and not SESSION_ID_RE.match(sid):
         sid = None
-    dirs = search_dirs()
     if sid:
-        for d in dirs:
-            f = d / f"{sid}.jsonl"
-            if f.is_file():
-                return sid, f"{f}  (last written {mtime(f.stat())})"
+        f = find_transcript(sid)
+        if f:
+            return sid, f"{f}  (last written {mtime(f.stat())})"
         return sid, "(no transcript file found for this session id)"
-    d = dirs[0]
+    d = search_dirs()[0]
     if not d.is_dir():
         return None, "(none found)"
     stats = [(p, p.stat()) for p in d.glob("*.jsonl")]
