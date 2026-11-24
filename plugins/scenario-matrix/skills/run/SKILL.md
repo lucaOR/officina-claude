@@ -2,7 +2,6 @@
 name: run
 description: Use when the user invokes /scenario-matrix:run, or asks to run scenarios, execute the test matrix, or check pass/fail status for an epic's scenario matrix at .claude/scenarios/<epic>.yaml — dispatches a batch to the scenario-matrix:runner agent, which runs it in the background and writes one results report with bugs found.
 argument-hint: '<epic> [<id> | <family>...] [--plan]'
-effort: medium
 ---
 
 # /scenario-matrix:run
