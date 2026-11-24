@@ -234,6 +234,21 @@ class TestRegister(_Base):
         self.assertEqual(s["enabledPlugins"], {"knowledge@officina-claude": True})
         self.assertNotIn("extraKnownMarketplaces", s)
 
+    def test_register_skips_a_local_marketplace_source(self):
+        for src in ({"source": "directory", "path": "/home/someone/officina-claude"},
+                    {"source": "file", "path": "/home/someone/officina-claude/marketplace.json"}):
+            root = self.base / ("p-" + src["source"])
+            self.known(src)
+            proc = self.run_cli("register.py", "--root", str(root))
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            out = json.loads(proc.stdout)
+            self.assertFalse(out["marketplace_registered"])
+            self.assertIn("local path", out["note"])
+            s = self.settings(root)
+            self.assertEqual(s["enabledPlugins"], {"knowledge@officina-claude": True})
+            self.assertNotIn("extraKnownMarketplaces", s)
+            self.assertNotIn("/home/someone", (root / ".claude/settings.json").read_text())
+
     def test_register_keeps_existing_marketplace(self):
         root = self.base / "p"
         mine = {"source": "git", "url": "u"}
