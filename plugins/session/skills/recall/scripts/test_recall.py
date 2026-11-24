@@ -447,6 +447,17 @@ class RebuildTest(Base):
 
 
 class OptOutTest(Base):
+    def test_search_hides_an_opted_out_project_before_its_purge_has_run(self):
+        other = self.projects / "-work-other"
+        write_session(other, sid(9), [("the quokka", "ok")])
+        write_session(self.pdir, sid(1), [("hello quokka", "hi")], parent=sid(9))
+        self.ingest(other)
+        self.ingest()
+        recall.record_optout("-work-other")           # recorded, purge not yet run
+        for extra in ((), ("--all",)):
+            hits = self.hit_lines(self.search(sid(1), "quokka", extra=extra))
+            self.assertEqual([h.split(" @")[0].split(" | ")[-1] for h in hits], [sid(1)], hits)
+
     def test_opted_out_project_is_purged_and_not_fetched_from_elsewhere(self):
         write_session(self.pdir, sid(1), [("the tapir", "ok")])
         self.ingest()

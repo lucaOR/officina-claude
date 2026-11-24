@@ -410,6 +410,11 @@ def build_tiers(ix, session, slug, depth):
     ix.db.execute(f"INSERT OR IGNORE INTO tier SELECT id, 2, NULL FROM session "
                   f"WHERE excluded = 0 AND project IN ({pmarks})", sorted(projects))
     ix.db.execute("INSERT OR IGNORE INTO tier SELECT id, 3, NULL FROM session WHERE excluded = 0")
+    # An opted-out project is hidden at query time, because its purge may not have run yet.
+    out = sorted(optouts())
+    if out:
+        ix.db.execute("DELETE FROM tier WHERE sid IN (SELECT id FROM session WHERE project IN "
+                      f"({','.join('?' * len(out))}))", out)
 
 
 def match_clause(ix, wordings):
