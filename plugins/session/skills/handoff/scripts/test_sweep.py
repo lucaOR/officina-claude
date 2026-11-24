@@ -118,6 +118,14 @@ class ArchiveGateTest(unittest.TestCase):
         sweep.sweep_one(note, time.time())
         self.assertFalse(note.exists())
 
+    def test_a_newer_note_is_kept_while_the_archive_holds_an_older_copy(self):
+        self.archived.mkdir(parents=True)
+        (self.archived / "abc.md").write_text("older text", encoding="utf-8")
+        note = self.read_note(self.handoff, "abc.md")
+        note.write_text("newer text", encoding="utf-8")
+        sweep.sweep_one(note, time.time())
+        self.assertTrue(note.exists())
+
     def test_read_note_with_a_skip_marker_is_deleted(self):
         self.archived.mkdir(parents=True)
         touch(self.archived / "abc.skip")

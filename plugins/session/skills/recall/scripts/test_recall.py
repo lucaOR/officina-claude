@@ -110,6 +110,23 @@ class IngestTest(Base):
         self.assertEqual(len(self.hit_lines(out)), 2)
         self.assertEqual(out.count("goal: tune the widget cache"), 1, out)
 
+    def test_the_note_copy_is_replaced_atomically_and_follows_a_changed_note(self):
+        write_session(self.pdir, sid(1), [("hello", "hi")])
+        handoff = self.home / ".claude" / "handoff"
+        handoff.mkdir(parents=True)
+        note = handoff / f"{sid(1)}.md"
+        note.write_text("first text")
+        self.ingest()
+        note.write_text("second text, longer")
+        replaced = []
+        real = os.replace
+        with mock.patch.object(recall.os, "replace",
+                               side_effect=lambda a, b: (replaced.append(Path(b).name), real(a, b))[1]):
+            self.ingest()
+        self.assertIn(f"{sid(1)}.md", replaced)
+        self.assertEqual((self.store / "notes" / f"{sid(1)}.md").read_text(), "second text, longer")
+        self.assertEqual(list((self.store / "notes").glob("*.tmp")), [])
+
     def test_skip_marker_keeps_a_session_out_and_marks_its_note(self):
         write_session(self.pdir, sid(1), [("secret plans [recall:skip]", "kept quiet")])
         handoff = self.home / ".claude" / "handoff"

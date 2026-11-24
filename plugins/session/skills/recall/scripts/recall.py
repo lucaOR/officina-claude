@@ -246,6 +246,14 @@ def drop_session(ix, sid, slug=None):
     (store() / "notes" / f"{sid}.md").unlink(missing_ok=True)
 
 
+def copy_note(sid):
+    """Copy the handoff note into the archive so the sweep never sees a half-written copy."""
+    dest = notes_dir() / f"{sid}.md"
+    tmp = dest.with_name(dest.name + ".tmp")
+    shutil.copyfile(handoff_note(sid), tmp)
+    os.replace(tmp, dest)
+
+
 def note_rows(sid, meta):
     """The archived note copy as a row, and its goal line."""
     copy = store() / "notes" / f"{sid}.md"
@@ -318,7 +326,7 @@ def ingest_session(ix, state, f: Path):
         write_gz(adir / sid / "subagents" / f"{sf.stem}.jsonl.gz", skept)
         rows += tr.rows(skept, subagent=sf.stem)
     if handoff_note(sid).is_file():
-        shutil.copyfile(handoff_note(sid), notes_dir() / f"{sid}.md")
+        copy_note(sid)
     copy, extra, goal = note_rows(sid, meta)
     ix.put(sid, slug, meta, rows + extra, copy, goal)
     state["sessions"][sid] = sig

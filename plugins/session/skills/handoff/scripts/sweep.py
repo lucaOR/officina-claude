@@ -18,9 +18,10 @@ Two locations, matching mark-handoff-consumed.py's is_handoff_note():
   - <repo>/.claude/handoff.local*.md
 
 Once /session:recall has run on this machine (its directory exists), a note under
-~/.claude/handoff is deleted only when recall's ingest has archived it (notes/<id>.md)
-or marked it as not to be archived (notes/<id>.skip). The sweep never works out which
-project a note belongs to; it only checks for that copy. A note without one waits for
+~/.claude/handoff is deleted only when recall's ingest has archived it
+with the same content (notes/<id>.md) or marked it as not to be archived (notes/<id>.skip).
+The sweep never works out which project a note belongs to; it only checks for that copy. A
+note without a matching copy, such as one rewritten after the last ingest, waits for
 an ingest in its own project. Paired-session handoff.local*.md notes keep the old rule,
 because recall does not archive them.
 
@@ -50,13 +51,19 @@ def recall_dir() -> Path:
 
 
 def archived(note: Path) -> bool:
-    """True when recall is absent, the note is not recall's to archive, or it holds a copy."""
+    """True when recall is absent, the note is not recall's to archive, or it holds an identical copy."""
     if note.parent != Path.home() / ".claude" / "handoff":
         return True     # handoff.local*.md: recall never archives these
     notes = recall_dir() / "notes"
     if not recall_dir().is_dir():
         return True     # recall never ran on this machine: the old rule applies
-    return (notes / note.name).is_file() or (notes / f"{note.stem}.skip").is_file()
+    if (notes / f"{note.stem}.skip").is_file():
+        return True
+    try:
+        # The copy must match: a note rewritten after the last ingest is newer than its archive.
+        return (notes / note.name).read_bytes() == note.read_bytes()
+    except OSError:
+        return False
 
 
 def sweep_one(note: Path, now: float) -> None:

@@ -67,7 +67,7 @@ original transcript stays until Claude Code's own cleanup deletes it, and the ou
 - Prompts, replies, tool calls and tool results, kept in full in the archive and cut to 2 KB in
   the index. Thinking, injected reminders and bookkeeping are left out.
 - The handoff note each session wrote, which ranks above other rows. The note sweep deletes a
-  read note only once it is archived.
+  read note only once its archived copy has the same content.
 
 ## Switches
 
