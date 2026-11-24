@@ -136,15 +136,16 @@ class TestGate(GateCase):
     def test_foreign_hook_refusal_names_the_script_to_call_from_it(self):
         hooks = self.hooks_dir()
         hooks.mkdir(parents=True, exist_ok=True)
-        wanted = {"pre-commit": "pre-commit-knowledge.sh", "post-commit": "postcommit.py"}
-        for name, script in wanted.items():
+        # postcommit.py is not executable, so its remedy must name the interpreter, as the shim does.
+        wanted = {"pre-commit": f"\"{K / 'githooks' / 'pre-commit-knowledge.sh'}\"",
+                  "post-commit": f"python3 \"{K / 'githooks' / 'postcommit.py'}\""}
+        for name, command in wanted.items():
             for other in wanted:
                 (hooks / other).unlink(missing_ok=True)
             (hooks / name).write_text("#!/bin/sh\necho mine\n")
             proc = self.install()
             self.assertEqual(proc.returncode, 1)
-            self.assertIn(f"Call \"{K / 'githooks' / script}\" from your own {name} hook instead",
-                          proc.stderr)
+            self.assertIn(f"Call {command} from your own {name} hook instead", proc.stderr)
 
     def test_install_refuses_a_hooks_dir_inside_the_work_tree(self):
         # core.hooksPath pointing at a tracked directory (husky): a shim there would commit

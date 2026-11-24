@@ -29,11 +29,12 @@ fi
 
 for name in pre-commit post-commit; do
   if [ -e "$hooks/$name" ] && ! grep -q "$marker" "$hooks/$name"; then
+    # postcommit.py is not executable, so its remedy names the interpreter, as the shim does.
     case $name in
-      pre-commit) gate="pre-commit-knowledge.sh" ;;
-      *) gate="postcommit.py" ;;
+      pre-commit) gate="\"$here/pre-commit-knowledge.sh\"" ;;
+      *) gate="python3 \"$here/postcommit.py\"" ;;
     esac
-    echo "knowledge: $hooks/$name already exists and is not ours; leaving it untouched. Call \"$here/$gate\" from your own $name hook instead." >&2
+    echo "knowledge: $hooks/$name already exists and is not ours; leaving it untouched. Call $gate from your own $name hook instead." >&2
     exit 1
   fi
 done
