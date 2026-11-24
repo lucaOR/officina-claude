@@ -76,6 +76,9 @@ deletes it, and the output says so.
   the index. Thinking, injected reminders and bookkeeping are left out.
 - The handoff note each session wrote, which ranks above other rows. The note sweep deletes a
   read note only once its archived copy has the same content.
+- A tool result that shows the handoff note of a skipped or forgotten session, read with `Read` or
+  `cat`, `sed` or `head` on its path, is replaced by a short placeholder in both the archive and the
+  index, so the note does not leak through the session that read it.
 
 ## Switches
 

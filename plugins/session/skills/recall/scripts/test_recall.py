@@ -241,6 +241,55 @@ class RetentionTest(Base):
         self.assertEqual(recall.load_state()["projects"]["-work-empty"]["retention"], 0)
 
 
+class SkippedNoteLeakTest(Base):
+    """A note of a skipped session must not enter the archive through a session that read it."""
+    SECRET = "the secret narwhal plan"
+
+    def reader(self, session, command_blocks):
+        calls, results = [], []
+        for i, (name, args) in enumerate(command_blocks):
+            calls.append({"type": "tool_use", "id": f"t{i}", "name": name, "input": args})
+            results.append({"type": "tool_result", "tool_use_id": f"t{i}", "content": self.SECRET})
+        blocks = [{"type": "assistant", "timestamp": stamp("2026-11-20", 40),
+                   "message": {"content": calls}},
+                  {"type": "user", "timestamp": stamp("2026-11-20", 41),
+                   "message": {"content": results}}]
+        write_session(self.pdir, session, [("read the note", "ok")], blocks=blocks)
+
+    def archive_text(self, session):
+        with gzip.open(self.store / "archive" / SLUG / f"{session}.jsonl.gz", "rt") as fh:
+            return fh.read()
+
+    def test_the_note_text_is_left_out_whatever_order_the_sessions_are_ingested_in(self):
+        note = str(self.home / ".claude" / "handoff" / f"{sid(2)}.md")
+        # The reader sorts first, so it is ingested before its writer's skip marker exists.
+        self.reader(sid(1), [("Read", {"file_path": note}),
+                             ("Bash", {"command": f"sed -n 1,20p {note}"}),
+                             ("Bash", {"command": f"cat ~/.claude/handoff/{sid(2)}.md"})])
+        write_session(self.pdir, sid(2), [("plans [recall:skip]", "ok")])
+        self.ingest()
+        self.assertEqual(self.hit_lines(self.search(sid(1), "narwhal")), [])
+        text = self.archive_text(sid(1))
+        self.assertNotIn(self.SECRET, text)
+        self.assertEqual(text.count("[left out: note of a skipped session]"), 3)
+        self.assertIn("sed -n 1,20p", text)          # the calls themselves stay
+
+    def test_the_note_of_an_ordinary_session_is_kept(self):
+        note = str(self.home / ".claude" / "handoff" / f"{sid(2)}.md")
+        self.reader(sid(1), [("Read", {"file_path": note})])
+        write_session(self.pdir, sid(2), [("plain plans", "ok")])
+        self.ingest()
+        self.assertEqual(len(self.hit_lines(self.search(sid(1), "narwhal"))), 1)
+
+    def test_a_forgotten_writer_counts_as_skipped(self):
+        note = str(self.home / ".claude" / "handoff" / f"{sid(2)}.md")
+        self.reader(sid(1), [("Read", {"file_path": note})])
+        write_session(self.pdir, sid(2), [("plain plans", "ok")])
+        recall.save_json("deny.json", [sid(2)])
+        self.ingest()
+        self.assertEqual(self.hit_lines(self.search(sid(1), "narwhal")), [])
+
+
 class SearchTest(Base):
     def test_hit_in_the_parent_reports_its_distance(self):
         write_session(self.pdir, sid(1), [("the zebra bug", "fixed")])

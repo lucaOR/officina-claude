@@ -324,6 +324,53 @@ def recall_subagent(path: Path, kept) -> bool:
     return bool(first) and tr.text_of(tr.content_of(first)).startswith("RECALL v1")
 
 
+LEFT_OUT = "[left out: note of a skipped session]"
+
+
+def note_path_re():
+    """A path to a handoff note, or to recall's archived copy of one, with the session id."""
+    where = [r"\.claude/handoff", r"\.claude/recall/notes", re.escape(str(store() / "notes"))]
+    return re.compile(r"(?:" + "|".join(where) + r")/([0-9a-fA-F-]{8,})\.md")
+
+
+def skipped_session(sid) -> bool:
+    """Whether a session is excluded, decided by its marker, the deny list or its own transcript,
+    so the answer does not depend on whether its own ingest has run yet."""
+    if (store() / "notes" / f"{sid}.skip").is_file() or sid in denied():
+        return True
+    f = find_transcript(sid)
+    return bool(f) and tr.meta(tr.keep(tr.read_entries(f)))["skip"]
+
+
+def leave_out_skipped_notes(kept):
+    """Replace the result of a tool call that read a skipped session's handoff note.
+
+    The note text would otherwise land in the reader's tool result, which is archived and
+    indexed. The tool call itself stays.
+    """
+    pattern, verdict, hidden = note_path_re(), {}, set()
+    for e in kept:
+        content = tr.content_of(e)
+        for b in content if e.get("type") == "assistant" and isinstance(content, list) else ():
+            if not isinstance(b, dict) or b.get("type") != "tool_use" \
+                    or b.get("name") not in ("Read", "Bash"):
+                continue
+            args = b.get("input") if isinstance(b.get("input"), dict) else {}
+            for sid in pattern.findall(str(args.get("file_path") or args.get("command") or "")):
+                if verdict.setdefault(sid, SESSION_ID_RE.match(sid) is not None
+                                      and skipped_session(sid)):
+                    hidden.add(b.get("id"))
+    if not hidden:
+        return kept
+    for e in kept:
+        content = tr.content_of(e)
+        for b in content if e.get("type") == "user" and isinstance(content, list) else ():
+            if isinstance(b, dict) and b.get("type") == "tool_result" \
+                    and b.get("tool_use_id") in hidden:
+                b["content"] = LEFT_OUT
+    return kept
+
+
 def ingest_session(ix, state, f: Path):
     """Archive and index one transcript when it is new or changed since the last run."""
     sid, slug = f.stem, f.parent.name
@@ -348,12 +395,13 @@ def ingest_session(ix, state, f: Path):
         drop_session(ix, sid, slug, exclude=True, parent=meta["parent"])
         state["sessions"][sid] = sig
         return
+    kept = leave_out_skipped_notes(kept)
     adir = store() / "archive" / slug
     write_gz(adir / f"{sid}.jsonl.gz", kept)
     rows = tr.rows(kept)
     shutil.rmtree(adir / sid, ignore_errors=True)
     for sf in subagent_files(f):
-        skept = tr.keep(tr.read_entries(sf))
+        skept = leave_out_skipped_notes(tr.keep(tr.read_entries(sf)))
         if recall_subagent(sf, skept):
             continue
         write_gz(adir / sid / "subagents" / f"{sf.stem}.jsonl.gz", skept)
