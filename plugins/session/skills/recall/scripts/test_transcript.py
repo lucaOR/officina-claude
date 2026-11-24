@@ -156,14 +156,19 @@ class RowsTest(unittest.TestCase):
 
 
 class RelayedExcerptTest(unittest.TestCase):
-    def test_assistant_text_between_the_excerpt_markers_is_not_indexed(self):
+    def test_a_message_holding_the_excerpt_markers_leaves_no_row(self):
+        # A live run restated the excerpts outside the markers, and the next recall found them
+        # again through that restatement, so the whole message is left out, not just the excerpts.
         text = ("Found it.\n[recall excerpts]\nsession abc: the decisive cormorant line\n"
-                "[end recall excerpts]\nSo we keep the plan.")
+                "[end recall excerpts]\nCause: the cormorant line, restated.")
         kept = [assistant({"type": "text", "text": text})]
-        rows = tr.rows(kept)
-        self.assertEqual([r[3] for r in rows], ["Found it.\n\nSo we keep the plan."])
-        self.assertIn("cormorant", text)            # the archive keeps the text in full
-        self.assertIn("cormorant", json.dumps(tr.keep(kept)))
+        self.assertEqual(tr.rows(kept), [])
+        self.assertIn("cormorant", json.dumps(tr.keep(kept)))   # the archive keeps it in full
+
+    def test_the_next_message_after_a_relay_is_indexed(self):
+        kept = [assistant({"type": "text", "text": "[recall excerpts]\nold\n[end recall excerpts]"}),
+                assistant({"type": "text", "text": "git log shows the heron branch merged"})]
+        self.assertEqual([r[3] for r in tr.rows(kept)], ["git log shows the heron branch merged"])
 
     def test_a_block_made_only_of_excerpts_leaves_no_row(self):
         kept = [assistant({"type": "text",

@@ -26,7 +26,8 @@ DROP_FIELDS = ("toolUseResult",)
 WRAPPERS = ("<command-name>", "<command-message>", "<command-args>", "<local-command-",
             "<task-notification>")
 COMMAND_ARGS = re.compile(r"<command-args>(.*?)</command-args>", re.S)
-# What the main session wraps around the excerpts it relays, so they are not found again.
+# What the main session wraps around the excerpts it relays. A text block that holds them is left
+# out whole, because the comments around them restate the excerpts and would be found again.
 RELAYED = re.compile(r"\[recall excerpts\].*?\[end recall excerpts\]", re.S)
 REMINDER = re.compile(r"<system-reminder>.*?</system-reminder>", re.S)
 
@@ -129,8 +130,8 @@ def is_recall_call(block):
 def rows(kept, subagent=None):
     """Index rows (role, position, timestamp, body) for every searchable block.
 
-    Recall's own calls and their results are left out, so one recall never finds the
-    excerpts an earlier recall printed.
+    Recall's own calls and their results are left out, and so is a reply that relays recall
+    excerpts, so one recall never finds what an earlier recall printed.
     """
     out = []
     echo = {b.get("id") for e in kept if e.get("type") == "assistant"
@@ -157,8 +158,8 @@ def rows(kept, subagent=None):
             for b in content if isinstance(content, list) else ():
                 if not isinstance(b, dict) or is_recall_call(b):
                     continue
-                if b.get("type") == "text":
-                    found.append(("assistant", RELAYED.sub("", b.get("text", "")).strip()))
+                if b.get("type") == "text" and not RELAYED.search(b.get("text", "")):
+                    found.append(("assistant", b.get("text", "").strip()))
                 elif b.get("type") == "tool_use":
                     body = f"{b.get('name', '')} {json.dumps(b.get('input'), ensure_ascii=False)}"
                     found.append(("tool_use", body[:CUT]))
