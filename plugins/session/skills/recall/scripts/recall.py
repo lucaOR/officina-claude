@@ -3,7 +3,8 @@
 
 Subcommands:
   whoami                 print this session's id and transcript directory, for the subagent
-  search [--stdin] [WORDING...]  search the chain (tier 1), then the project (tier 2), --all: everything
+  search [--stdin] [WORDING...]  search the chain (tier 1), then the project (tier 2), --all: everything,
+                         --on DAY or DAY..DAY: that day's or period's hits first
   show SESSION POS       print the archived exchange around one hit, tool results in full
   forget SESSION|this    delete a session from the archive and skip it from now on
   ingest --project DIR   archive and index one transcript directory (the detached startup job)
@@ -54,6 +55,7 @@ SHOW_CONTEXT = 3
 SHOW_CAP = 20000
 TOKEN = re.compile(r"\w+")
 GOAL = re.compile(r"^goal:\s*(.+)$", re.M)
+ON = re.compile(r"^(\d{4}-\d{2}-\d{2})(?:\.\.(\d{4}-\d{2}-\d{2}))?$")
 
 SESSION_DDL = """CREATE TABLE IF NOT EXISTS session(
     id TEXT PRIMARY KEY, project TEXT NOT NULL, started TEXT, ended TEXT, parent TEXT,
@@ -585,7 +587,8 @@ def label(tier, back, project):
     return "T2 project" if tier == 2 else f"T3 {project}"
 
 
-def run_search(ix, wordings, session, slug, depth, everything):
+def run_search(ix, wordings, session, slug, depth, everything, on=None):
+    """on: (first day, last day) as YYYY-MM-DD, whose hits rank first, or None."""
     wordings = [w for w in wordings if TOKEN.search(w)]   # `?!` has nothing to match
     if not wordings:
         return ["note: the query has no searchable words"]
@@ -594,10 +597,14 @@ def run_search(ix, wordings, session, slug, depth, everything):
     counts = dict(ix.db.execute(
         f"SELECT tier.tier, count(*) FROM block JOIN tier ON tier.sid = block.sid "
         f"WHERE {where} GROUP BY tier.tier", params).fetchall())
-    # The asking session repeats its own question, so only its earlier chain sessions count.
+    # A row's date is its UTC timestamp's, the same date the hit line prints.
+    dated, dparams = ("substr(block.ts, 1, 10) BETWEEN ? AND ?", list(on)) if on else ("0", [])
+    # The asking session repeats its own question, so only its earlier chain sessions count,
+    # and for a dated query only their rows from that date.
     earlier = ix.db.execute(
         f"SELECT count(*) FROM block JOIN tier ON tier.sid = block.sid "
-        f"WHERE {where} AND tier.tier = 1 AND tier.back > 0", params).fetchone()[0]
+        f"WHERE {where} AND tier.tier = 1 AND tier.back > 0" + (f" AND {dated}" if on else ""),
+        [*params, *dparams]).fetchone()[0]
     top = 3 if everything else (1 if earlier >= WIDEN_BELOW else 2)
     if ix.fts:
         text, score = "snippet(block, 0, '[', ']', '…', 40)", \
@@ -606,18 +613,27 @@ def run_search(ix, wordings, session, slug, depth, everything):
         text, score = "block.body", "0"
     hits = ix.db.execute(
         f"SELECT block.sid, block.role, block.pos, block.ts, {text}, tier.tier, tier.back, "
-        f"session.project, session.goal, {score} AS score "
+        f"session.project, session.goal, {score} AS score, ({dated}) AS dated "
         f"FROM block JOIN tier ON tier.sid = block.sid JOIN session ON session.id = block.sid "
-        f"WHERE {where} AND tier.tier <= ? ORDER BY tier.tier, score, block.ts DESC LIMIT ?",
-        [*params, top, MAX_HITS]).fetchall()
+        f"WHERE {where} AND tier.tier <= ? "
+        f"ORDER BY dated DESC, tier.tier, score, block.ts DESC LIMIT ?",
+        [*dparams, *params, top, MAX_HITS]).fetchall()
     total = sum(n for t, n in counts.items() if t <= top)
     shown = " | ".join(f'"{w}"' for w in wordings)
     if not total:
         return [f"recall: no hits for {shown} in tiers 1-{top}"]
     per_tier = ", ".join(f"tier {t}: {counts[t]}" for t in sorted(counts) if t <= top)
+    if on:
+        period = on[0] if on[0] == on[1] else f"{on[0]}..{on[1]}"
+        on_day = ix.db.execute(
+            f"SELECT count(*) FROM block JOIN tier ON tier.sid = block.sid "
+            f"WHERE {where} AND tier.tier <= ? AND {dated}", [*params, top, *dparams]).fetchone()[0]
+        per_tier += f"; on {period}: {on_day}"
     lines = [f"recall: {total} hit{'s' if total != 1 else ''} for {shown} ({per_tier})"]
+    if on and not on_day:
+        lines.append(f"note: no hits on {period}; every hit below is from another date")
     named = set()
-    for sid, role, pos, ts, body, tier, back, project, goal, _ in hits:
+    for sid, role, pos, ts, body, tier, back, project, goal, _, _ in hits:
         snippet = " ".join((body if ix.fts else excerpt(body, groups)).split())[:SNIPPET]
         goal_part = f"goal: {goal} | " if goal and sid not in named else ""
         named.add(sid)                               # a session's goal is printed once
@@ -634,6 +650,10 @@ def current_session(value):
 
 
 def cmd_search(args):
+    on = ON.match(args.on) if args.on is not None else None
+    if args.on is not None and not on:
+        print("recall: --on takes a day as YYYY-MM-DD or a period as YYYY-MM-DD..YYYY-MM-DD")
+        return 2
     if disabled():
         print("recall: disabled for this project (RECALL_DISABLE=1)")
         return 0
@@ -657,7 +677,8 @@ def cmd_search(args):
                 save_json("state.json", state)
             else:
                 notes.append("another ingest holds the lock; this chain was not refreshed first")
-        lines = run_search(ix, args.words, session, pdir.name, depth, args.all)
+        lines = run_search(ix, args.words, session, pdir.name, depth, args.all,
+                           on and (on.group(1), on.group(2) or on.group(1)))
     except sqlite3.DatabaseError as e:
         print(f"recall: cannot open the index ({e}). Run: recall.py rebuild")
         return 1
@@ -835,6 +856,8 @@ def main(argv=None):
     s.add_argument("--project")
     s.add_argument("--depth", type=int)
     s.add_argument("--all", action="store_true")
+    s.add_argument("--on", help="YYYY-MM-DD or YYYY-MM-DD..YYYY-MM-DD: rank that day's or "
+                                "period's hits first")
     s.add_argument("--stdin", action="store_true",
                    help="also read wordings from stdin, one per line, so a query never passes "
                         "through the shell")

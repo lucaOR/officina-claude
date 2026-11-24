@@ -63,6 +63,10 @@ class GuardTest(unittest.TestCase):
     def test_allows_search_with_options(self):
         self.assertAllowed(search("q", args="--session abc --project=-home-x --all --depth 3 --stdin"))
 
+    def test_allows_search_on_a_day_or_a_period(self):
+        self.assertAllowed(search("q", args="--session abc --project=-home-x --on 2026-11-06 --stdin"))
+        self.assertAllowed(search("q", args="--session abc --project=-home-x --on 2026-11-04..2026-11-10 --stdin"))
+
     def test_allows_show_with_position(self):
         self.assertAllowed(py("show", "0a1b2c3d-1111-2222-3333-444455556666 12"))
 

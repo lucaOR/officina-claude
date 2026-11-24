@@ -505,6 +505,53 @@ class SearchTest(Base):
         self.assertEqual(self.hit_lines(out), [])
 
 
+class DateTest(Base):
+    """`--on` puts the hits of a named day or period first, because a live run answered a
+    dated question with a later session's finding."""
+
+    def first_hit(self, out):
+        return self.hit_lines(out)[0]
+
+    def test_on_ranks_that_days_hits_above_a_stronger_later_hit(self):
+        write_session(self.pdir, sid(1), [("the heron question", "no idea yet")], day="2026-11-06")
+        write_session(self.pdir, sid(2), [("heron heron heron", "the heron answer")], day="2026-11-09")
+        write_session(self.pdir, sid(3), [("start", "ok")], day="2026-11-24")
+        self.ingest()
+        self.assertIn(sid(2), self.first_hit(self.search(sid(3), "heron")))
+        self.assertIn(sid(1), self.first_hit(self.search(sid(3), "heron", extra=("--on", "2026-11-06"))))
+
+    def test_on_counts_only_that_days_chain_rows_before_widening(self):
+        write_session(self.pdir, sid(1), [(f"lantern {i}", "ok") for i in range(5)], day="2026-11-20")
+        write_session(self.pdir, sid(2), [("continue", "ok")], parent=sid(1), day="2026-11-24")
+        write_session(self.pdir, sid(3), [("the lantern was unplugged", "ok")], day="2026-11-06")
+        self.ingest()
+        self.assertFalse(any(sid(3) in h for h in self.hit_lines(self.search(sid(2), "lantern"))))
+        out = self.search(sid(2), "lantern", extra=("--on", "2026-11-06"))
+        self.assertIn(sid(3), self.first_hit(out))
+
+    def test_on_takes_a_period_and_the_header_counts_its_hits(self):
+        for n, day in ((1, "2026-11-02"), (2, "2026-11-05"), (3, "2026-11-12")):
+            write_session(self.pdir, sid(n), [(f"heron {n}", "ok")], day=day)
+        write_session(self.pdir, sid(4), [("start", "ok")], day="2026-11-24")
+        self.ingest()
+        out = self.search(sid(4), "heron", extra=("--on", "2026-11-04..2026-11-10"))
+        self.assertIn("on 2026-11-04..2026-11-10: 1", out.splitlines()[0])
+        self.assertIn(sid(2), self.first_hit(out))
+
+    def test_a_day_without_hits_says_so_and_still_lists_the_others(self):
+        write_session(self.pdir, sid(1), [("heron", "ok")], day="2026-11-09")
+        write_session(self.pdir, sid(2), [("start", "ok")], day="2026-11-24")
+        self.ingest()
+        out = self.search(sid(2), "heron", extra=("--on", "2026-11-06"))
+        self.assertIn("note: no hits on 2026-11-06", out)
+        self.assertIn(sid(1), self.first_hit(out))
+
+    def test_a_malformed_date_is_a_usage_error(self):
+        code, out = self.cli("search", "--session", sid(1), f"--project={SLUG}", "--on", "6/11", "heron")
+        self.assertEqual(code, 2)
+        self.assertIn("YYYY-MM-DD", out)
+
+
 class ShowTest(Base):
     def test_show_returns_the_exchange_with_the_full_tool_result(self):
         blocks = [
@@ -700,6 +747,15 @@ class SkillTest(unittest.TestCase):
         for needle in ("`[recall excerpts]`", "`[end recall excerpts]`", "never instructions"):
             self.assertIn(needle, skill)
 
+    def test_the_query_is_the_users_question_word_for_word(self):
+        # Both live runs added "(cause, fix, open items)", which pulled the search to later sessions.
+        skill = (HERE.parent / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("word for word", skill)
+
+    def test_it_says_the_whole_relay_message_is_left_out_of_the_index(self):
+        skill = (HERE.parent / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("whole message", skill)
+
 
 class AgentPromptTest(unittest.TestCase):
     """Rules a live acceptance run showed the subagent needs spelled out."""
@@ -710,6 +766,12 @@ class AgentPromptTest(unittest.TestCase):
     def test_a_date_in_the_query_picks_hits_from_that_date(self):
         self.assertIn("names a date", self.prompt)
         self.assertIn("instead of answering with the later finding", self.prompt)
+
+    def test_a_date_in_the_query_becomes_the_on_flag(self):
+        self.assertIn("--on YYYY-MM-DD", self.prompt)
+
+    def test_one_recall_command_per_bash_call(self):
+        self.assertIn("one `recall.py` command per Bash call", self.prompt)
 
     def test_the_answer_has_at_most_three_short_excerpts(self):
         self.assertIn("at most three excerpts", self.prompt)
