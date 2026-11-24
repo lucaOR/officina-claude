@@ -68,6 +68,7 @@ Plugin skills are namespaced by plugin: type `/session:handoff`, not
 |---|---|
 | `/compact` summaries lose the thread, or a new session starts cold | [`session`](#session) (`/session:handoff`) |
 | A vague idea needs pinning down before anyone writes code | [`session`](#session) (`/session:refine`) |
+| A session after a handoff needs a detail that its note left out | [`session`](#session) (`/session:recall`) |
 | You can't tell which sessions or habits burn your token budget | [`token-hygiene`](#token-hygiene) |
 | Whole-file reads, re-reads and long test logs swell the context before compaction kicks in | [`token-hygiene`](#token-hygiene) |
 | A plan drifts from what you meant, and reviewing it in the terminal is slow | [`planner-companion`](#planner-companion) |
@@ -89,17 +90,25 @@ starts from the note instead of from a `/compact` summary and the conversation i
 `/session:refine` interviews you about a vague idea before any of that, one question per
 message, until the idea becomes an intent draft with a purpose, done-criteria and non-goals.
 Once you commit that draft as `.claude/intents/<slug>.md`, each handoff note quotes its goal
-verbatim, and the pivot gate checks each new note against it.
+verbatim, and the pivot gate checks each new note against it. `/session:recall` gets back what a
+note left out: it searches an archive of earlier sessions, the session's own handoff chain first.
 
 - `/session:handoff`: write the note and print the pointer. `boundary` or `mid` forces the
   mode, which is a result summary for a finished task and a working-state snapshot for an
   unfinished one.
 - `/session:refine`: interview a vague idea into an intent draft at
   `~/.claude/refine/<slug>/draft.md`. `/session:refine resume <slug>` picks one up again.
+- `/session:recall <query>`: a subagent searches the session's handoff chain, then the rest of
+  the project, and returns short excerpts. `--all` widens the search to every archived project,
+  and `/session:recall forget <session-id|this>` deletes a session from the archive. The
+  archive lives in `~/.claude/recall/` and keeps a session for 180 days. `RECALL_DISABLE=1` in a
+  project's settings keeps that project out, and `[recall:skip]` in a prompt keeps one session
+  out.
 - Hooks, which need no command: the pivot gate judges each note against its intent file in the
   background and reports the verdict at the next session start; the new session inherits the
-  `/rename` title of the session it continues; and a sweep at session start deletes a note once
-  it was read more than a day ago.
+  `/rename` title of the session it continues; a detached ingest at session start archives the
+  project's transcripts and notes for `/session:recall`; and a sweep at session start deletes a
+  note once it was read more than a day ago and, when recall is in use, once it is archived.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/assets/handoff-loop-dark.svg">
