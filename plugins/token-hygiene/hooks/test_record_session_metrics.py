@@ -160,8 +160,9 @@ class HookCase(unittest.TestCase):
         (tdir / f"{session_id}.jsonl").write_text(
             "\n".join(json.dumps(r) for r in records) + "\n"
         )
+        # METRICS_DISABLE is stripped because a user-scope settings env reaches this shell too.
         env = dict(
-            os.environ,
+            {k: v for k, v in os.environ.items() if k != "METRICS_DISABLE"},
             HOME=str(self.tmp / "home"),
             CLAUDE_PROJECT_DIR=str(proj_root),
             **(env_extra or {}),
@@ -175,6 +176,22 @@ class HookCase(unittest.TestCase):
     def rows(self, name):
         with open(self.metrics / f"{name}{GEN}.csv", newline="") as fh:
             return list(csv.DictReader(fh))
+
+
+class TestSwitch(HookCase):
+    SESSION = [
+        assistant("m1", "2026-01-01T10:00:00.000Z", 10, 47000, 600, 50),
+    ]
+
+    def test_metrics_disable_writes_no_ledger(self):
+        self.run_hook("33333333-0000-0000-0000-000000000000", self.SESSION,
+                      {"METRICS_DISABLE": "1"})
+        self.assertFalse((self.metrics / f"sessions{GEN}.csv").exists())
+
+    def test_metrics_disable_zero_still_records(self):
+        self.run_hook("33333333-0000-0000-0000-000000000000", self.SESSION,
+                      {"METRICS_DISABLE": "0"})
+        self.assertEqual(len(self.rows("sessions")), 1)
 
 
 class TestInitContext(HookCase):

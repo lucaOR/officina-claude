@@ -16,6 +16,11 @@
 // activity/session_hours), rather than appending a second, non-deduplicated copy.
 const fs = require('fs'), path = require('path'), readline = require('readline');
 
+// METRICS_DISABLE=1 records nothing. The ledgers carry no project column, so a user-scope install
+// sets it there and the one project whose metrics are wanted sets METRICS_DISABLE=0 in its own
+// settings, which keeps the guards running everywhere without mixing projects into one dataset.
+if (process.env.METRICS_DISABLE === '1') process.exit(0);
+
 const HOME = process.env.HOME;
 // Project transcript dir = ~/.claude/projects/<slug>, where <slug> is the project root path with
 // '/' and '.' replaced by '-' (Claude Code's encoding). Derived from CLAUDE_PROJECT_DIR (set by the

@@ -308,8 +308,10 @@ The line it gets in the digest that every session starts with:
 - `planner-companion` needs Claude Code 2.1.328 or later. Its page wakes the session through a background
   `Bash` watcher, which was proven on that version and is untested on older ones.
 - The refine reviewer and the pivot gate shell out to `claude -p`, so the CLI must be on `PATH`.
-- Enable `token-hygiene` per project, not at user scope. Its CSVs under `~/.claude/metrics/`
-  carry no project column, so a user-scope install mixes every project into one dataset.
+- `token-hygiene`'s CSVs under `~/.claude/metrics/` carry no project column, so the metrics of
+  every project that records them land in one dataset. To run the guards in every project, enable
+  the plugin at user scope with `METRICS_DISABLE=1` in the user `env`, and set `METRICS_DISABLE=0`
+  in the `env` of the one project whose metrics you want.
 - Per-project state stays in the project: intent files in `.claude/intents/`, paired-role
   notes in `.claude/handoff.local*.md`, the dashboard in `docs/`, and the knowledge base in
   `.claude/knowledge/`, with its per-machine queue and ledger in the gitignored
