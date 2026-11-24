@@ -26,6 +26,8 @@ DROP_FIELDS = ("toolUseResult",)
 WRAPPERS = ("<command-name>", "<command-message>", "<command-args>", "<local-command-",
             "<task-notification>")
 COMMAND_ARGS = re.compile(r"<command-args>(.*?)</command-args>", re.S)
+# What the main session wraps around the excerpts it relays, so they are not found again.
+RELAYED = re.compile(r"\[recall excerpts\].*?(?:\[end recall excerpts\]|\Z)", re.S)
 REMINDER = re.compile(r"<system-reminder>.*?</system-reminder>", re.S)
 
 
@@ -156,7 +158,7 @@ def rows(kept, subagent=None):
                 if not isinstance(b, dict) or is_recall_call(b):
                     continue
                 if b.get("type") == "text":
-                    found.append(("assistant", b.get("text", "")))
+                    found.append(("assistant", RELAYED.sub("", b.get("text", "")).strip()))
                 elif b.get("type") == "tool_use":
                     body = f"{b.get('name', '')} {json.dumps(b.get('input'), ensure_ascii=False)}"
                     found.append(("tool_use", body[:CUT]))

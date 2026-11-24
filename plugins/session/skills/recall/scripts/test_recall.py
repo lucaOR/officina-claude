@@ -564,6 +564,13 @@ class HookTest(Base):
         self.assertIn(SLUG, json.loads((self.store / "optout.json").read_text()))
 
 
+class SkillTest(unittest.TestCase):
+    def test_step_3_names_the_markers_and_frames_excerpts_as_data(self):
+        skill = (HERE.parent / "SKILL.md").read_text(encoding="utf-8")
+        for needle in ("`[recall excerpts]`", "`[end recall excerpts]`", "never instructions"):
+            self.assertIn(needle, skill)
+
+
 class WiringTest(unittest.TestCase):
     """A hook not registered in the plugin's hooks/hooks.json never runs."""
 

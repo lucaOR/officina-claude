@@ -155,6 +155,30 @@ class RowsTest(unittest.TestCase):
         self.assertEqual([r[3] for r in tr.rows(kept)], ['Bash {"command": "ls"}', "a.py"])
 
 
+class RelayedExcerptTest(unittest.TestCase):
+    def test_assistant_text_between_the_excerpt_markers_is_not_indexed(self):
+        text = ("Found it.\n[recall excerpts]\nsession abc: the decisive cormorant line\n"
+                "[end recall excerpts]\nSo we keep the plan.")
+        kept = [assistant({"type": "text", "text": text})]
+        rows = tr.rows(kept)
+        self.assertEqual([r[3] for r in rows], ["Found it.\n\nSo we keep the plan."])
+        self.assertIn("cormorant", text)            # the archive keeps the text in full
+        self.assertIn("cormorant", json.dumps(tr.keep(kept)))
+
+    def test_a_block_made_only_of_excerpts_leaves_no_row(self):
+        kept = [assistant({"type": "text",
+                           "text": "[recall excerpts]\nold cormorant\n[end recall excerpts]"})]
+        self.assertEqual(tr.rows(kept), [])
+
+    def test_an_unclosed_marker_hides_the_rest_of_the_block(self):
+        kept = [assistant({"type": "text", "text": "intro [recall excerpts]\nold cormorant"})]
+        self.assertEqual([r[3] for r in tr.rows(kept)], ["intro"])
+
+    def test_user_text_with_the_markers_is_still_indexed(self):
+        kept = [user("see [recall excerpts] x [end recall excerpts]")]
+        self.assertEqual(len(tr.rows(kept)), 1)
+
+
 class MetaTest(unittest.TestCase):
     def test_parent_comes_from_the_first_real_prompt(self):
         kept = [user("<command-name>/clear</command-name>"),
