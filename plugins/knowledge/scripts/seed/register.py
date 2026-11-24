@@ -3,9 +3,9 @@
 marketplace source into `<root>/.claude/settings.json`. The marketplace entry is copied from
 `<config dir>/plugins/known_marketplaces.json` (only its `source` object); without a known
 marketplace only `enabledPlugins` is written and the output says so. Idempotent; every other
-key is kept, and a source added from a local path (directory or file) is never copied, since it
-would leak a personal path and break every other clone; the output notes it instead. An existing `extraKnownMarketplaces["officina-claude"]` is left
-alone.
+key is kept, and an existing `extraKnownMarketplaces["officina-claude"]` is left alone. A source
+added from a local path (directory or file) is never copied, since it would leak a personal path
+and break every other clone; the output notes it instead.
 
 CLI: register.py --root R"""
 from __future__ import annotations
