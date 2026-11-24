@@ -44,6 +44,7 @@ sys.path.insert(0, str(HERE.parents[2] / "lib"))
 import transcript as tr  # noqa: E402
 from lineage import SESSION_ID_RE, find_transcript, projects_root, search_dirs  # noqa: E402
 
+RETENTION_DAYS = 180
 MAX_HITS = 40
 SNIPPET = 300
 WIDEN_BELOW = 5          # tier 2 is searched when tier 1 has fewer distinct matching rows
@@ -334,6 +335,7 @@ def ingest_project(ix, state, pdir: Path):
             state["sessions"].pop(f.stem, None)     # re-enabling the project ingests it again
         ix.db.commit()
         return
+    state["projects"].setdefault(slug, {})["retention"] = env_int("RECALL_RETENTION_DAYS", RETENTION_DAYS)
     for f in sorted(pdir.glob("*.jsonl")):
         try:
             ingest_session(ix, state, f)
@@ -344,12 +346,18 @@ def ingest_project(ix, state, pdir: Path):
     state["projects"].setdefault(slug, {})["done"] = True
 
 
-def expire(ix):
-    days = env_int("RECALL_RETENTION_DAYS", 180)
-    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S")
-    for sid, slug in ix.db.execute(
-            "SELECT id, project FROM session WHERE ended < ?", (cutoff,)).fetchall():
-        drop_session(ix, sid, slug)
+def expire(ix, state):
+    """Drop sessions past their own project's retention: the value that project's last ingest
+    recorded, 180 days when it never recorded one, and never when that value is 0 or below."""
+    now = datetime.now(timezone.utc)
+    for slug, in ix.db.execute("SELECT DISTINCT project FROM session").fetchall():
+        days = state["projects"].get(slug, {}).get("retention", RETENTION_DAYS)
+        if not isinstance(days, int) or days <= 0:
+            continue
+        cutoff = (now - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S")
+        for sid, in ix.db.execute(
+                "SELECT id FROM session WHERE project = ? AND ended < ?", (slug, cutoff)).fetchall():
+            drop_session(ix, sid, slug)
     ix.db.commit()
 
 
@@ -626,7 +634,7 @@ def cmd_ingest(args):
         ix = Index()
         state = load_state()
         ingest_project(ix, state, pdir)
-        expire(ix)
+        expire(ix, state)
         save_json("state.json", state)
     return 0
 

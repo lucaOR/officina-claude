@@ -75,7 +75,10 @@ Set them in the `env` block of the project's `.claude/settings.json`:
 
 - `RECALL_DISABLE=1`: the project is never archived, its existing archive is deleted, and a
   search there returns nothing.
-- `RECALL_RETENTION_DAYS` (default 180): how long the archive keeps a session after it ends.
+- `RECALL_RETENTION_DAYS` (default 180): how long the archive keeps a session after it ends. Each
+  project's ingest records its own value, and expiry applies each project's recorded value to that
+  project alone, so a setting in one project never deletes another project's archive. A value of 0
+  or below means that project never expires, and a value that is not a number counts as 180.
 - `RECALL_DEPTH` (default 10): how far back the chain is followed.
 
 To keep a single session out, put `[recall:skip]` anywhere in one of its prompts. That includes a

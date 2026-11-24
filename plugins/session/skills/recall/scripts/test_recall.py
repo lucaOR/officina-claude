@@ -178,6 +178,52 @@ class IngestTest(Base):
         self.assertTrue(all("agent-a1:" in h for h in hits), hits)
 
 
+class RetentionTest(Base):
+    def days_ago(self, n):
+        return (datetime.now(timezone.utc) - timedelta(days=n)).strftime("%Y-%m-%d")
+
+    def archived(self, slug, n):
+        return (self.store / "archive" / slug / f"{sid(n)}.jsonl.gz").exists()
+
+    def test_each_project_expires_by_its_own_recorded_value(self):
+        other = self.projects / "-work-other"
+        write_session(self.pdir, sid(1), [("a", "ok")], day=self.days_ago(100))
+        write_session(other, sid(2), [("b", "ok")], day=self.days_ago(100))
+        self.ingest(other)                      # default 180: 100 days old stays
+        os.environ["RECALL_RETENTION_DAYS"] = "30"
+        self.ingest()                           # this project keeps 30 days
+        self.assertFalse(self.archived(SLUG, 1))
+        self.assertTrue(self.archived("-work-other", 2))
+        del os.environ["RECALL_RETENTION_DAYS"]
+        self.ingest()                           # an ingest elsewhere never applies a foreign value
+        os.environ["RECALL_RETENTION_DAYS"] = "1"
+        self.ingest()
+        self.assertTrue(self.archived("-work-other", 2))
+
+    def test_zero_or_below_means_the_project_never_expires(self):
+        for value in ("0", "-5"):
+            os.environ["RECALL_RETENTION_DAYS"] = value
+            write_session(self.pdir, sid(1), [("a", "ok")], day=self.days_ago(1000))
+            self.ingest()
+            self.assertTrue(self.archived(SLUG, 1), value)
+
+    def test_a_value_that_is_not_a_number_falls_back_to_180(self):
+        os.environ["RECALL_RETENTION_DAYS"] = "soon"
+        write_session(self.pdir, sid(1), [("a", "ok")], day=self.days_ago(100))
+        write_session(self.pdir, sid(2), [("a", "ok")], day=self.days_ago(200))
+        self.ingest()
+        self.assertTrue(self.archived(SLUG, 1))
+        self.assertFalse(self.archived(SLUG, 2))
+
+    def test_a_project_that_never_recorded_a_value_gets_180(self):
+        write_session(self.pdir, sid(1), [("a", "ok")], day=self.days_ago(200))
+        self.ingest()
+        self.assertFalse(self.archived(SLUG, 1))
+        with mock.patch.dict(os.environ, {"RECALL_RETENTION_DAYS": "0"}):
+            self.ingest(self.projects / "-work-empty")
+        self.assertEqual(recall.load_state()["projects"]["-work-empty"]["retention"], 0)
+
+
 class SearchTest(Base):
     def test_hit_in_the_parent_reports_its_distance(self):
         write_session(self.pdir, sid(1), [("the zebra bug", "fixed")])
