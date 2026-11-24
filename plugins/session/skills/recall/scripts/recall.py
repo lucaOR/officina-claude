@@ -357,8 +357,9 @@ def leave_out_skipped_notes(kept):
                 continue
             args = b.get("input") if isinstance(b.get("input"), dict) else {}
             for sid in pattern.findall(str(args.get("file_path") or args.get("command") or "")):
-                if verdict.setdefault(sid, SESSION_ID_RE.match(sid) is not None
-                                      and skipped_session(sid)):
+                if sid not in verdict:
+                    verdict[sid] = SESSION_ID_RE.match(sid) is not None and skipped_session(sid)
+                if verdict[sid]:
                     hidden.add(b.get("id"))
     if not hidden:
         return kept

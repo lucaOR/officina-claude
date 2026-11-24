@@ -290,6 +290,15 @@ class SkippedNoteLeakTest(Base):
         self.assertEqual(self.hit_lines(self.search(sid(1), "narwhal")), [])
 
 
+    def test_two_reads_of_one_note_check_the_writer_once(self):
+        note = str(self.home / ".claude" / "handoff" / f"{sid(2)}.md")
+        self.reader(sid(1), [("Read", {"file_path": note}), ("Bash", {"command": f"cat {note}"})])
+        write_session(self.pdir, sid(2), [("plain plans", "ok")])
+        with mock.patch.object(recall, "skipped_session", wraps=recall.skipped_session) as spy:
+            self.ingest()
+        self.assertEqual([c.args[0] for c in spy.call_args_list].count(sid(2)), 1)
+
+
 class SearchTest(Base):
     def test_hit_in_the_parent_reports_its_distance(self):
         write_session(self.pdir, sid(1), [("the zebra bug", "fixed")])
