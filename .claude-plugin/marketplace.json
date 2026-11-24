@@ -38,7 +38,7 @@
       "name": "scenario-matrix",
       "source": "./plugins/scenario-matrix",
       "description": "Behaviour-driven scenario matrices with an installable Node harness: setup installs the core and the adapters a project's stack needs, matrix builds and compiles the matrix, run runs it.",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "category": "testing"
     },
     {

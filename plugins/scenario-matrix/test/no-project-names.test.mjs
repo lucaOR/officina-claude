@@ -68,7 +68,7 @@ function allowedTech(name) {
 // Every shipped file in scope, tagged with the adapter that owns it (null when none does).
 function scopedFiles() {
   const files = [];
-  for (const d of ['runtime/core', 'runtime/templates', 'skills', 'reference']) {
+  for (const d of ['runtime/core', 'runtime/templates', 'skills', 'reference', 'agents']) {
     for (const file of walk(join(PLUGIN, d))) files.push({ file, adapter: null });
   }
   for (const adapter of adapterNames()) {
