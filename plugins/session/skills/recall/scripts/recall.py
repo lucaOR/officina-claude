@@ -440,6 +440,9 @@ def label(tier, back, project):
 
 
 def run_search(ix, wordings, session, slug, depth, everything):
+    wordings = [w for w in wordings if TOKEN.search(w)]   # `?!` has nothing to match
+    if not wordings:
+        return ["note: the query has no searchable words"]
     where, params, groups = match_clause(ix, wordings)
     build_tiers(ix, session, slug, depth)
     counts = dict(ix.db.execute(

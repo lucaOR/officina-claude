@@ -329,6 +329,24 @@ class SearchTest(Base):
         self.assertIn("--stdin <<'RECALL_WORDINGS'", agent)
         self.assertNotIn('"<query>" "<wording 2>"', agent)
 
+    def test_a_query_without_word_characters_says_so_and_does_not_blame_the_index(self):
+        write_session(self.pdir, sid(1), [("the heron", "ok")])
+        self.ingest()
+        for no_fts in (False, True):
+            with mock.patch.dict(os.environ, {"RECALL_NO_FTS5": "1"} if no_fts else {}):
+                code, out = self.cli("search", "--session", sid(1), f"--project={SLUG}", "?!", "...")
+            self.assertEqual(code, 0, out)
+            self.assertIn("note: the query has no searchable words", out)
+            self.assertNotIn("rebuild", out)
+            self.assertEqual(self.hit_lines(out), [])
+
+    def test_a_wording_without_words_is_dropped_next_to_a_good_one(self):
+        write_session(self.pdir, sid(1), [("the heron", "ok")])
+        self.ingest()
+        out = self.search(sid(1), "?!", "heron")
+        self.assertEqual(len(self.hit_lines(out)), 1, out)
+        self.assertNotIn("?!", out)
+
     def test_without_fts5_the_search_scans_and_says_so(self):
         os.environ["RECALL_NO_FTS5"] = "1"
         write_session(self.pdir, sid(1), [("plain Gecko", "ok")])
