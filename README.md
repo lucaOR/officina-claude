@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  Claude Code plugins from the workshop: session handoffs, token metrics, live plan co-design, offline diagrams and behaviour-driven scenario matrices.
+  Claude Code plugins from the workshop, for developers who use Claude Code every day on real projects.
 </p>
 
 <p align="center">
@@ -101,9 +101,10 @@ note left out: it searches an archive of earlier sessions, the session's own han
 - `/session:recall <query>`: a subagent searches the session's handoff chain, then the rest of
   the project, and returns short excerpts. `--all` widens the search to every archived project,
   and `/session:recall forget <session-id|this>` deletes a session from the archive. The
-  archive lives in `~/.claude/recall/` and keeps a session for 180 days. `RECALL_DISABLE=1` in a
-  project's settings keeps that project out, and `[recall:skip]` in a prompt keeps one session
-  out.
+  archive lives in `~/.claude/recall/` and keeps a session for 180 days, which
+  `RECALL_RETENTION_DAYS` changes. `RECALL_DISABLE=1` in a project's settings keeps that project
+  out and deletes what is already archived for it, and `[recall:skip]` in a prompt keeps one
+  session out.
 - Hooks, which need no command: the pivot gate judges each note against its intent file in the
   background and reports the verdict at the next session start; the new session inherits the
   `/rename` title of the session it continues; a detached ingest at session start archives the
@@ -281,7 +282,9 @@ Claude memory and from instruction files such as `CLAUDE.md`.
 - `/knowledge:kb <fact and what backs it>`: push an observation into the queue. In a scribe
   session, started with `claude --agent knowledge:scribe`, `/knowledge:kb run` drains the queue.
 - Hooks, which need no command: the digest at session start, rule injection before an edit and
-  the checks after it. Each hook stays silent in a project that has no `.claude/knowledge/`.
+  the checks after it. In a scribe session, a hook gives the scribe its brief at every session
+  start, a `/clear` or a compaction included, and a gate keeps `/knowledge:kb run` out of every
+  other session. Each hook stays silent in a project that has no `.claude/knowledge/`.
 
 The [plugin's README](plugins/knowledge/README.md) covers setup, the scribe and the rule schema in
 full. A rule in the demo's `.claude/knowledge/checkout.yaml`:
@@ -321,11 +324,18 @@ The line it gets in the digest that every session starts with:
   every project that records them land in one dataset. To run the guards in every project, enable
   the plugin at user scope with `METRICS_DISABLE=1` in the user `env`, and set `METRICS_DISABLE=0`
   in the `env` of the one project whose metrics you want.
+- `session`'s recall ingest archives the sessions of every project that enables the plugin, in
+  `~/.claude/recall/`, whether or not the project ever writes a handoff note. To archive only some
+  projects, set `RECALL_DISABLE=1` in the user `env` and `RECALL_DISABLE=0` in the `env` of each
+  project you want archived.
+- A `knowledge` rule's `check:` command can call any tool, such as `ast-grep`, and that tool must
+  be installed where the check runs. When the tool is missing and the command prints no number,
+  the check counts as inconclusive.
 - Per-project state stays in the project: intent files in `.claude/intents/`, paired-role
   notes in `.claude/handoff.local*.md`, the dashboard in `docs/`, and the knowledge base in
   `.claude/knowledge/`, with its per-machine queue and ledger in the gitignored
-  `.claude/knowledge/.local/`. Each session hook acts only on its own trigger (a handoff note
-  written or read), so it stays quiet in a project that never writes one.
+  `.claude/knowledge/.local/`. The handoff hooks act only on a handoff note written or read, so
+  they stay quiet in a project that never writes one.
 
 ---
 

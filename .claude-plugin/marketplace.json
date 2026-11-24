@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "officina-claude",
-  "description": "Session handoffs, token metrics, live plan co-design, offline diagrams and behaviour-driven scenario matrices for Claude Code.",
+  "description": "Claude Code plugins from the workshop, for developers who use Claude Code every day on real projects.",
   "owner": {
     "name": "Luca Oronzo"
   },
@@ -16,7 +16,7 @@
     {
       "name": "token-hygiene",
       "source": "./plugins/token-hygiene",
-      "description": "Per-session token metrics and /token-dashboard to chart them, plus guards that keep the context small: read caps, re-read dedup, long-output squashing and a watchdog that interrupts once the context passes 150k tokens.",
+      "description": "Per-session token metrics and /token-dashboard to chart them, plus guards that keep the context small: read caps, re-read dedup, long-output squashing and a watchdog that interrupts once the context passes 150k tokens, with opt-in guards for reads outside the project and for Opus subagents.",
       "version": "0.3.0",
       "category": "productivity"
     },
@@ -30,7 +30,7 @@
     {
       "name": "diagrams",
       "source": "./plugins/diagrams",
-      "description": "Sequence, workflow and entity-relationship diagrams from compact rows, rendered offline to static SVG with no dependencies.",
+      "description": "Sequence, workflow and entity-relationship diagrams from compact rows, rendered offline with no dependencies to a standalone HTML page or an SVG file.",
       "version": "0.1.1",
       "category": "productivity"
     },
