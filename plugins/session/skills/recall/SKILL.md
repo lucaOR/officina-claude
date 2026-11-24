@@ -13,6 +13,10 @@ then the rest of the project, and every archived project only when asked.
 The main session never reads hits itself. A subagent searches, reads and trims them, and hands
 back at most about 2 KB.
 
+The subagent has the Bash tool only, and a `PreToolUse` hook (`hooks/recall-guard.py`) lets it run
+nothing but this plugin's `recall.py search` and `recall.py show`, because the archive text it reads
+is untrusted.
+
 ## Usage
 
 - `/session:recall <query>`: search the chain, then the project.
