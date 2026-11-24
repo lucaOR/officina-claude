@@ -701,6 +701,21 @@ class SkillTest(unittest.TestCase):
             self.assertIn(needle, skill)
 
 
+class AgentPromptTest(unittest.TestCase):
+    """Rules a live acceptance run showed the subagent needs spelled out."""
+
+    def setUp(self):
+        self.prompt = (HERE.parents[2] / "agents" / "recall.md").read_text(encoding="utf-8")
+
+    def test_a_date_in_the_query_picks_hits_from_that_date(self):
+        self.assertIn("names a date", self.prompt)
+        self.assertIn("instead of answering with the later finding", self.prompt)
+
+    def test_the_answer_has_at_most_three_short_excerpts(self):
+        self.assertIn("at most three excerpts", self.prompt)
+        self.assertIn("about ten lines", self.prompt)
+
+
 class WiringTest(unittest.TestCase):
     """A hook not registered in the plugin's hooks/hooks.json never runs."""
 

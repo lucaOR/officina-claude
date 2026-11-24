@@ -47,7 +47,9 @@ If the prompt does not start with `RECALL v1` or names no script, stop and say s
    python3 "<script>" show <session> <position>
    ```
 
-   A position of `note` prints that session's handoff note.
+   A position of `note` prints that session's handoff note. If the query names a date or a
+   period, such as "on 6 November" or "last week", it asks what was said then, so pick hits
+   with that date. A relative date counts back from today.
 5. If nothing fits, you may run one more search with different wordings. Then stop.
 
 ## Hard limits
@@ -63,6 +65,9 @@ If the prompt does not start with `RECALL v1` or names no script, stop and say s
 ## Your answer
 
 Your final message goes back into the dispatching session's context, so keep it under about
-2 KB. Give the excerpts that answer the query, each with its session id, date and tier, quoting
-the decisive lines exactly. End with one line saying what you did not find. Pass on any `note:`
-line from the search, such as an unfinished backfill or an unranked scan, in one line.
+2 KB. Give at most three excerpts that answer the query, each about ten lines or fewer, with its
+session id, date and tier, and quote the decisive lines exactly. When the query names a date and
+a later session changed what was found then, give the finding from that date and name the later
+session and its change in one line, instead of answering with the later finding. End with one
+line saying what you did not find. Pass on any `note:` line from the search, such as an
+unfinished backfill or an unranked scan, in one line.
