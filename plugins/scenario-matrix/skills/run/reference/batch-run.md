@@ -26,7 +26,7 @@ node .claude/scenarios/_lib/query.mjs <epic> --infra    # provisioning/perimeter
 |---|---|---|
 | `.claude/scenarios/_lib/scenarios.config.json` | `runsDir` (where a run writes), `monitor` (the live collector command, or `null`), `lifecycle` (the bring-up and teardown commands, `refusedExit`) | before every batch run |
 | `.claude/scenarios/_lib/harness-api.md` | the result contract, the lifecycle hooks `run.mjs` calls and `summaryExtras`; then one page per installed adapter, whose "Other contributions" list its `Fatal log patterns:`, its reset steps and its `Lint:` rules; then the project's levers | before every batch run, and when diagnosing a `KO` |
-| `.claude/scenarios/_lib/project-api.md` | what the project documents beyond its levers, each section only when it has one: `## Bring-up` (what its bring-up starts, checks and refuses), `## Teardown` (the lines a successful teardown prints), `## Monitor` (what its monitor records, and where), `## Fatal log patterns` (patterns no adapter contributes) | before every batch run, and when diagnosing |
+| `.claude/scenarios/_lib/project-api.md` | what the project documents beyond its levers, each section only when it has one: `## Run environment` (the variables to export when starting `run.mjs`), `## Bring-up` (what its bring-up starts, checks and refuses), `## Teardown` (the lines a successful teardown prints), `## Monitor` (what its monitor records, and where), `## Fatal log patterns` (patterns no adapter contributes) | before every batch run, and when diagnosing |
 | `.claude/scenarios/_lib/hooks.mjs` | the project's lifecycle hooks, when it defines them | when a bring-up, its verification or a teardown fails |
 
 ## What run.mjs does
@@ -114,6 +114,9 @@ fatal patterns were defined, rather than claiming none fired.
    filled in.
 2. **Start `run.mjs`** in the background with its output in `{log}`
    (`mkdir -p RUN && node .claude/scenarios/_lib/run.mjs <epic> <sel> > {log} 2>&1`).
+   When `_lib/project-api.md` has a `## Run environment` section, prefix the
+   command with the variables it lists. You run in a fresh context, so a
+   variable the parent session was told to export reaches you only this way.
 3. **Follow the log with the `Monitor` tool**, so that each row result arrives
    as an event instead of being found at the end:
    `tail -F {log} | grep --line-buffered -E '^[A-Z]-[0-9]+[a-z]* (OK|KO|INCONCLUSIVE|STALE|BLOCKED|SKIPPED|UNCOMPILED)|^stack |^bring-up refused|[Ee]rror|failed'`,
