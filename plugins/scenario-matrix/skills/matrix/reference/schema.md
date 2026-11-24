@@ -25,7 +25,8 @@ infra:                            # required whenever any scenario uses a scn_* 
   teardown: "the ONE-TIME test-shutdown, run once after the whole selected
     suite finishes: symmetrically reverses every change `provisioning` made —
     restores real containers/services, reverts every .env correction, stops
-    any worker it started, drops the scn_* databases, and clears every log
+    any worker it started, drops the scn_* databases (including any
+    <dbPrefix>rh_* clone a failed setup rehearsal left behind), and clears every log
     source an adapter declares (the run's accumulated logs — the same DB+log
     clean the per-scenario reset does, applied once at the end so teardown
     leaves the machine clean). Exact script/command path. Must undo everything
