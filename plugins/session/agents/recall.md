@@ -56,7 +56,20 @@ If the prompt does not start with `RECALL v1` or names no script, stop and say s
 
    A position of `note` prints that session's handoff note. For a dated query, show the best
    hit from that date before any later one, even when a later one looks like the fuller answer.
-5. If nothing fits, you may run one more search with different wordings. Then stop.
+5. Always run a second search, with the same command as step 2, even when the first one seems
+   to answer the query. Build its wordings from what step 4 showed you, one per line:
+   - each exact term the hits revealed that your first wordings lacked, such as a column, a
+     file, an error code or a command name, so that rows holding the raw detail turn up;
+   - for each item a hit calls open, owed, failing or not yet run, that item's id or name
+     followed by one word of a later state, such as `OK`, `passed`, `fixed` or `done`, one
+     line per word.
+
+   Show the hits of this search that change your answer. A row from a nearer session (a
+   smaller `N back` in tier 1) or from a later date may say that an open item was settled
+   since: report that latest state and name the session that records it. If step 4 showed no
+   new term and no open item, give the second search different wordings of the query instead.
+6. If nothing fits after that, you may run a third search with different wordings. Then stop.
+   You run at most three searches in all.
 
 ## Hard limits
 
@@ -76,6 +89,8 @@ Your final message goes back into the dispatching session's context, so keep it 
 2 KB. Give at most three excerpts that answer the query, each about ten lines or fewer, with its
 session id, date and tier, and quote the decisive lines exactly. When the query names a date and
 a later session changed what was found then, give the finding from that date and name the later
-session and its change in one line, instead of answering with the later finding. End with one
-line saying what you did not find. Pass on any `note:` line from the search, such as an
-unfinished backfill or an unranked scan, in one line.
+session and its change in one line, instead of answering with the later finding. When you
+relay whether something is open or done, give the latest state your second search found. End with one
+line saying what your searches did not find. Say only that they did not find it, never that the
+archive lacks it, because you saw only the rows your wordings matched. Pass on any `note:` line
+from the search, such as an unfinished backfill or an unranked scan, in one line.

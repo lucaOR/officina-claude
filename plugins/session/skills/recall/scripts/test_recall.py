@@ -804,7 +804,9 @@ class AgentPromptTest(unittest.TestCase):
     """Rules a live acceptance run showed the subagent needs spelled out."""
 
     def setUp(self):
-        self.prompt = (HERE.parents[2] / "agents" / "recall.md").read_text(encoding="utf-8")
+        # Whitespace collapsed, so re-wrapping the prompt's lines breaks no assertion.
+        text = (HERE.parents[2] / "agents" / "recall.md").read_text(encoding="utf-8")
+        self.prompt = " ".join(text.split())
 
     def test_a_date_in_the_query_picks_hits_from_that_date(self):
         self.assertIn("names a date", self.prompt)
@@ -822,6 +824,28 @@ class AgentPromptTest(unittest.TestCase):
     def test_the_answer_has_at_most_three_short_excerpts(self):
         self.assertIn("at most three excerpts", self.prompt)
         self.assertIn("about ten lines", self.prompt)
+
+    # The tier-1 run of 2026-11-24 relayed "L-03 rerun still owed" from a note 3 back,
+    # while the note 2 back said L-03 had passed since. It also said the raw error was not
+    # archived, but a row held it under the column name the first hits had revealed. A
+    # replay with a conditional follow-up rule ("each check that applies") skipped both
+    # checks, so the second search is unconditional.
+    def test_a_second_search_always_runs(self):
+        self.assertIn("Always run a second search", self.prompt)
+
+    def test_the_second_search_uses_the_terms_the_hits_revealed(self):
+        self.assertIn("that your first wordings lacked", self.prompt)
+
+    def test_the_second_search_looks_for_the_later_state_of_an_open_item(self):
+        self.assertIn("open, owed, failing or not yet run", self.prompt)
+        self.assertIn("smaller `N back`", self.prompt)
+        self.assertIn("latest state", self.prompt)
+
+    def test_not_found_speaks_of_the_searches_not_of_the_archive(self):
+        self.assertIn("never that the archive lacks it", self.prompt)
+
+    def test_searches_stay_bounded(self):
+        self.assertIn("at most three searches in all", self.prompt)
 
 
 class WiringTest(unittest.TestCase):
