@@ -44,7 +44,10 @@ If the prompt does not start with `RECALL v1` or names no script, stop and say s
    The goal of a session's handoff note appears on that session's first hit only. Tier 1 is
    the session's own handoff chain, tier 2 the rest of its project, tier 3 any other
    project (only with `--all`). Hits are ranked within a tier, and with `--on` the hits from
-   that date come before all others.
+   that date come before all others. When no row from that date holds every word of a
+   wording, a `note:` line says so, and the first hits are that date's rows that best match
+   any word. They are looser matches, but they are the only record of that date, so show the
+   best of them before you settle on a later session.
 4. For the hits that look like they answer the query, at most five, print the full exchange:
 
    ```bash

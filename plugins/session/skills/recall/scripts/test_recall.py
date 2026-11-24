@@ -546,6 +546,49 @@ class DateTest(Base):
         self.assertIn("note: no hits on 2026-11-06", out)
         self.assertIn(sid(1), self.first_hit(out))
 
+    def test_a_day_without_a_whole_wording_lists_its_any_word_rows_first(self):
+        # A live run found no 11-06 row holding every word of any wording, so the 11-06
+        # session that answered the question was never shown.
+        write_session(self.pdir, sid(1), [("safari fails at the sms step", "two gateway instances")],
+                      day="2026-11-06")
+        write_session(self.pdir, sid(2), [("gateway refusing the sms code on safari", "double submit")],
+                      day="2026-11-09")
+        write_session(self.pdir, sid(3), [("start", "ok")], day="2026-11-24")
+        self.ingest()
+        query = "Gateway refusing the SMS code on Safari"
+        out = self.search(sid(3), query, extra=("--on", "2026-11-06"))
+        self.assertIn(sid(1), self.first_hit(out))
+        self.assertIn("note: no row on 2026-11-06 holds every word of a wording", out)
+        self.assertTrue(any(sid(2) in h for h in self.hit_lines(out)), out)
+        self.assertNotIn(sid(1), self.search(sid(3), query))
+
+    def test_any_word_rows_of_the_day_show_when_no_wording_matches_anywhere(self):
+        write_session(self.pdir, sid(1), [("safari fails at the sms step", "two gateway instances")],
+                      day="2026-11-06")
+        write_session(self.pdir, sid(2), [("start", "ok")], day="2026-11-24")
+        self.ingest()
+        for no_fts in (False, True):
+            with mock.patch.dict(os.environ, {"RECALL_NO_FTS5": "1"} if no_fts else {}):
+                out = self.search(sid(2), "Gateway refusing the SMS code on Safari",
+                                  extra=("--on", "2026-11-06"))
+            hits = self.hit_lines(out)
+            self.assertTrue(hits and sid(1) in hits[0], out)
+
+    def test_any_word_rows_are_capped(self):
+        write_session(self.pdir, sid(1), [(f"heron {i}", f"ok {i}") for i in range(8)], day="2026-11-06")
+        write_session(self.pdir, sid(2), [("start", "ok")], day="2026-11-24")
+        self.ingest()
+        out = self.search(sid(2), "heron egret", extra=("--on", "2026-11-06"))
+        self.assertEqual(len(self.hit_lines(out)), recall.ANY_WORD_HITS, out)
+
+    def test_a_day_with_a_whole_wording_match_adds_no_any_word_rows(self):
+        write_session(self.pdir, sid(1), [("the heron question", "egret")], day="2026-11-06")
+        write_session(self.pdir, sid(2), [("start", "ok")], day="2026-11-24")
+        self.ingest()
+        out = self.search(sid(2), "heron question", extra=("--on", "2026-11-06"))
+        self.assertEqual(len(self.hit_lines(out)), 1, out)
+        self.assertNotIn("any word", out)
+
     def test_a_malformed_date_is_a_usage_error(self):
         code, out = self.cli("search", "--session", sid(1), f"--project={SLUG}", "--on", "6/11", "heron")
         self.assertEqual(code, 2)
@@ -769,6 +812,9 @@ class AgentPromptTest(unittest.TestCase):
 
     def test_a_date_in_the_query_becomes_the_on_flag(self):
         self.assertIn("--on YYYY-MM-DD", self.prompt)
+
+    def test_it_explains_the_any_word_rows_of_a_dated_search(self):
+        self.assertIn("any word", self.prompt)
 
     def test_one_recall_command_per_bash_call(self):
         self.assertIn("one `recall.py` command per Bash call", self.prompt)

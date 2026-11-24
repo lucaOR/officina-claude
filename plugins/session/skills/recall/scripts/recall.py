@@ -51,6 +51,7 @@ SNIPPET = 300
 WIDEN_BELOW = 5          # tier 2 is searched when the earlier chain sessions have fewer matching rows
 LOCK_WAIT = 5.0          # seconds the bounded ingest in search waits for the lock
 NOTE_WEIGHT = 2.0        # bm25 is negative, lower ranks first, so a note's score is doubled
+ANY_WORD_HITS = 5        # rows of a dated search's day that match any word, when none match a wording
 SHOW_CONTEXT = 3
 SHOW_CAP = 20000
 TOKEN = re.compile(r"\w+")
@@ -611,29 +612,43 @@ def run_search(ix, wordings, session, slug, depth, everything, on=None):
             f"bm25(block) * (CASE block.role WHEN 'note' THEN {NOTE_WEIGHT} ELSE 1.0 END)"
     else:
         text, score = "block.body", "0"
+    select = (f"SELECT block.sid, block.role, block.pos, block.ts, {text}, tier.tier, tier.back, "
+              f"session.project, session.goal, {score} AS score, ({dated}) AS dated "
+              f"FROM block JOIN tier ON tier.sid = block.sid JOIN session ON session.id = block.sid ")
     hits = ix.db.execute(
-        f"SELECT block.sid, block.role, block.pos, block.ts, {text}, tier.tier, tier.back, "
-        f"session.project, session.goal, {score} AS score, ({dated}) AS dated "
-        f"FROM block JOIN tier ON tier.sid = block.sid JOIN session ON session.id = block.sid "
-        f"WHERE {where} AND tier.tier <= ? "
+        select + f"WHERE {where} AND tier.tier <= ? "
         f"ORDER BY dated DESC, tier.tier, score, block.ts DESC LIMIT ?",
         [*dparams, *params, top, MAX_HITS]).fetchall()
     total = sum(n for t, n in counts.items() if t <= top)
     shown = " | ".join(f'"{w}"' for w in wordings)
-    if not total:
-        return [f"recall: no hits for {shown} in tiers 1-{top}"]
     per_tier = ", ".join(f"tier {t}: {counts[t]}" for t in sorted(counts) if t <= top)
+    loose = []
     if on:
         period = on[0] if on[0] == on[1] else f"{on[0]}..{on[1]}"
         on_day = ix.db.execute(
             f"SELECT count(*) FROM block JOIN tier ON tier.sid = block.sid "
             f"WHERE {where} AND tier.tier <= ? AND {dated}", [*params, top, *dparams]).fetchone()[0]
-        per_tier += f"; on {period}: {on_day}"
+        per_tier = "; ".join(p for p in (per_tier, f"on {period}: {on_day}") if p)
+        if not on_day:
+            # A live run's dated session said it in other words, or spread them over several
+            # rows. One day is small, so its rows that match any word, best first, are worth
+            # showing; across a whole project that would be noise.
+            words = sorted({t.lower() for g in groups for t in g})
+            any_where, any_params, _ = match_clause(ix, words)
+            loose = ix.db.execute(
+                select + f"WHERE {any_where} AND tier.tier <= ? AND {dated} "
+                f"ORDER BY tier.tier, score, block.ts DESC LIMIT ?",
+                [*dparams, *any_params, top, *dparams, ANY_WORD_HITS]).fetchall()
+    if not total and not loose:
+        return [f"recall: no hits for {shown} in tiers 1-{top}"]
     lines = [f"recall: {total} hit{'s' if total != 1 else ''} for {shown} ({per_tier})"]
-    if on and not on_day:
+    if loose:
+        lines.append(f"note: no row on {period} holds every word of a wording, so the first "
+                     f"{len(loose)} hits are that day's rows that best match any word")
+    elif on and not on_day:
         lines.append(f"note: no hits on {period}; every hit below is from another date")
     named = set()
-    for sid, role, pos, ts, body, tier, back, project, goal, _, _ in hits:
+    for sid, role, pos, ts, body, tier, back, project, goal, _, _ in loose + hits:
         snippet = " ".join((body if ix.fts else excerpt(body, groups)).split())[:SNIPPET]
         goal_part = f"goal: {goal} | " if goal and sid not in named else ""
         named.add(sid)                               # a session's goal is printed once
