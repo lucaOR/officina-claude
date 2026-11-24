@@ -239,8 +239,9 @@ def drop_session(ix, sid, slug=None):
     slug = slug or (r[0] if r else None)
     ix.drop_rows(sid)
     ix.db.execute("DELETE FROM session WHERE id = ?", (sid,))
-    if slug:
-        adir = store() / "archive" / slug
+    # With no index row the project is unknown, so every project's archive is searched for it.
+    adirs = [store() / "archive" / slug] if slug else sorted((store() / "archive").glob("*"))
+    for adir in adirs:
         (adir / f"{sid}.jsonl.gz").unlink(missing_ok=True)
         shutil.rmtree(adir / sid, ignore_errors=True)
     (store() / "notes" / f"{sid}.md").unlink(missing_ok=True)
@@ -607,8 +608,11 @@ def cmd_rebuild(args):
             f.unlink()
         ix = Index()
         count = 0
+        gone, optedout = denied(), optouts()
         for gz in sorted((store() / "archive").glob("*/*.jsonl.gz")):
             sid, slug = gz.name[: -len(".jsonl.gz")], gz.parent.name
+            if sid in gone or slug in optedout:
+                continue                     # forgotten or opted out: it must not come back
             kept = list(tr.read_entries(gz))
             meta = tr.meta(kept)
             rows = tr.rows(kept)

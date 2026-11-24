@@ -388,12 +388,44 @@ class ForgetTest(Base):
         self.assertEqual(self.hit_lines(self.search(sid(1), "narwhal")), [])
         self.assertFalse((self.store / "archive" / SLUG / f"{sid(1)}.jsonl.gz").exists())
 
+    def test_forget_deletes_the_archive_even_when_the_index_has_no_row(self):
+        write_session(self.pdir, sid(1), [("the numbat", "ok")], blocks=[])
+        self.ingest()
+        for f in self.store.glob("index.sqlite*"):
+            f.unlink()
+        sub = self.store / "archive" / SLUG / sid(1) / "subagents"
+        sub.mkdir(parents=True)
+        (sub / "a.jsonl.gz").write_bytes(b"x")
+        self.assertEqual(self.cli("forget", sid(1))[0], 0)
+        self.assertFalse((self.store / "archive" / SLUG / f"{sid(1)}.jsonl.gz").exists())
+        self.assertFalse((self.store / "archive" / SLUG / sid(1)).exists())
+
     def test_forget_this_uses_the_current_session(self):
         write_session(self.pdir, sid(1), [("the okapi", "ok")])
         self.ingest()
         os.environ["CLAUDE_CODE_SESSION_ID"] = sid(1)
         self.assertEqual(self.cli("forget", "this")[0], 0)
         self.assertEqual(self.hit_lines(self.search(sid(1), "okapi")), [])
+
+
+class RebuildTest(Base):
+    def test_rebuild_does_not_bring_back_a_forgotten_session(self):
+        write_session(self.pdir, sid(1), [("the dugong", "ok")])
+        write_session(self.pdir, sid(2), [("the dugong too", "ok")])
+        self.ingest()
+        recall.save_json("deny.json", [sid(1)])     # a forget whose archive deletion failed
+        self.assertEqual(self.cli("rebuild")[0], 0)
+        hits = self.hit_lines(self.search(sid(2), "dugong"))
+        self.assertEqual(len(hits), 1)
+        self.assertIn(sid(2), hits[0])
+
+    def test_rebuild_skips_opted_out_projects(self):
+        write_session(self.pdir, sid(1), [("the dugong", "ok")])
+        self.ingest()
+        recall.record_optout(SLUG)
+        self.assertEqual(self.cli("rebuild")[0], 0)
+        recall.record_optout(SLUG, False)      # re-enabled: only the rebuild could have kept rows
+        self.assertEqual(self.hit_lines(self.search(sid(1), "dugong")), [])
 
 
 class OptOutTest(Base):
