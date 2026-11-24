@@ -22,6 +22,7 @@ EXPECTED = {
     ("PreToolUse", "Read", "cap-large-reads.py"),
     ("PreToolUse", "Bash", "filter-verbose-output.py"),
     ("PreToolUse", "Bash", "block-external-reads.py"),
+    ("PreToolUse", "Agent", "guard-opus-agents.py"),
     ("PostToolUse", "Read", "skip-redundant-reads.py"),
     ("Stop", "", "context-watchdog.py"),
     ("SessionEnd", "", "record-session-metrics.js"),

@@ -150,6 +150,7 @@ on their own, and each one has a switch:
 | Output squash | Pipes test runners, builds, installs and `docker logs` through a filter that keeps the start, the end and the error lines of a long output. The command's exit status is kept. | `NO_SQUASH=1` before a command, `SQUASH_DISABLE=1` |
 | Context watchdog | When the context passes 150k tokens, it interrupts once: it denies the next tool call, or blocks the stop if the turn is ending. Claude then writes a handoff note with `/session:handoff`, or with the project's own handoff skill, for you to `/clear` on, or asks you to `/compact`. | `CONTEXT_WARN_TOKENS`, `CONTEXT_WATCHDOG_MODE=wild` for advice only, `CONTEXT_WARN=0` |
 | External reads, off by default | Denies a `Read`, or a `cat`-style command, on a path outside the project, `~/.claude` and the session scratchpad, so that outside material is copied to the scratchpad and read by a subagent. It assumes the scratchpad sits under `/tmp/claude-*`, as on Linux. | `EXTERNAL_READ_ENABLE=1` |
+| Opus subagents, off by default | Denies an `Agent` dispatch with an Opus model unless its description names a final review of a whole branch, design or architecture work, or a fix-loop escalation, or its prompt has a line `Opus risk: <the risk>`. Implementers, per-task reviews and fix waves are asked to re-dispatch on Sonnet. | `OPUS_GUARD_ENABLE=1` |
 
 Set a switch in the `env` block of the project's `.claude/settings.json`.
 

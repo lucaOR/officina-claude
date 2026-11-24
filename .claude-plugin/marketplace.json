@@ -17,7 +17,7 @@
       "name": "token-hygiene",
       "source": "./plugins/token-hygiene",
       "description": "Per-session token metrics and /token-dashboard to chart them, plus guards that keep the context small: read caps, re-read dedup, long-output squashing and a watchdog that interrupts once the context passes 150k tokens.",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "category": "productivity"
     },
     {
