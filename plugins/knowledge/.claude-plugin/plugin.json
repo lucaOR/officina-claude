@@ -1,6 +1,6 @@
 {
   "name": "knowledge",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Project knowledge base in atomic YAML rules: a session digest, rules injected and checked at edit time, a /kb capture queue curated by a scribe agent, and a setup that seeds it from Claude memory and instruction files.",
   "author": {
     "name": "Luca Oronzo"
