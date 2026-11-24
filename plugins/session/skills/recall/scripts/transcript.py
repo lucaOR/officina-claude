@@ -25,6 +25,7 @@ KEEP_TYPES = ("user", "assistant", "system", "summary", "custom-title", "ai-titl
 DROP_FIELDS = ("toolUseResult",)
 WRAPPERS = ("<command-name>", "<command-message>", "<command-args>", "<local-command-",
             "<task-notification>")
+COMMAND_ARGS = re.compile(r"<command-args>(.*?)</command-args>", re.S)
 REMINDER = re.compile(r"<system-reminder>.*?</system-reminder>", re.S)
 
 
@@ -48,9 +49,22 @@ def keep(entries):
     """The archive filter: conversation entries only, minus duplicated payloads."""
     kept = []
     for e in entries:
-        if e.get("type") in KEEP_TYPES:
+        if e.get("type") in KEEP_TYPES or queued_attachment(e) is not None:
             kept.append({k: v for k, v in e.items() if k not in DROP_FIELDS})
     return kept
+
+
+def queued_attachment(entry):
+    """The attachment of a message typed while Claude was working, else None.
+
+    That message is recorded only as an attachment of subtype queued_command, so the archive
+    keeps these and no other attachment.
+    """
+    att = entry.get("attachment")
+    if entry.get("type") == "attachment" and isinstance(att, dict) \
+            and att.get("type") == "queued_command":
+        return att
+    return None
 
 
 def content_of(entry):
@@ -70,17 +84,28 @@ def text_of(content):
 
 def real_prompt(entry):
     """The text a person typed, or None for meta entries, wrappers and tool results."""
-    if entry.get("type") != "user" or entry.get("isMeta"):
+    att = queued_attachment(entry)
+    if att is not None:
+        origin = att.get("origin")
+        kind = origin.get("kind") if isinstance(origin, dict) else None
+        if att.get("isMeta") or kind not in (None, "human"):
+            return None     # a peer message or a task notification, not something typed
+        content = att.get("prompt")
+    elif entry.get("type") != "user" or entry.get("isMeta"):
         return None
-    content = content_of(entry)
+    else:
+        content = content_of(entry)
     if isinstance(content, list):
         content = [b for b in content if isinstance(b, dict) and b.get("type") == "text"]
         if not content:
             return None
     text = REMINDER.sub("", text_of(content)).strip()
-    if not text or text.startswith(WRAPPERS):
+    if text.startswith(("<command-message>", "<command-name>")):
+        m = COMMAND_ARGS.search(text)       # a slash command's arguments are what was typed
+        text = m.group(1).strip() if m else ""
+    elif text.startswith(WRAPPERS):
         return None
-    return text
+    return text or None
 
 
 def is_recall_call(block):
@@ -112,7 +137,11 @@ def rows(kept, subagent=None):
         pos = f"{subagent}:{i}" if subagent else str(i)
         ts = e.get("timestamp") or ""
         found = []
-        if e.get("type") == "user":
+        if e.get("type") == "attachment":
+            prompt = real_prompt(e)
+            if prompt:
+                found.append(("user", prompt))
+        elif e.get("type") == "user":
             prompt = real_prompt(e)
             if prompt:
                 found.append(("user", prompt))

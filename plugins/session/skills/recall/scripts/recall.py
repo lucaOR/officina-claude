@@ -505,7 +505,7 @@ def render_entry(j, e):
     head = f"--- @{j} {e.get('type')} {e.get('timestamp', '')}"
     out = [head]
     content = tr.content_of(e)
-    if e.get("type") == "user":
+    if e.get("type") in ("user", "attachment"):
         prompt = tr.real_prompt(e)
         if prompt:
             out.append(prompt[:SHOW_CAP])
@@ -549,7 +549,8 @@ def cmd_show(args):
         print(f"recall: bad position {args.pos!r}")
         return 2
     kept = list(tr.read_entries(path))
-    convo = [j for j, e in enumerate(kept) if e.get("type") in ("user", "assistant")]
+    convo = [j for j, e in enumerate(kept) if e.get("type") in ("user", "assistant")
+             or tr.queued_attachment(e) is not None]
     if not convo:
         print("recall: the archived transcript is empty or missing")
         return 1

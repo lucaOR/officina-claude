@@ -121,6 +121,26 @@ class IngestTest(Base):
         self.assertFalse((self.store / "notes" / f"{sid(1)}.md").exists())
         self.assertEqual(self.hit_lines(self.search(sid(1), "quiet")), [])
 
+    def test_a_message_typed_mid_turn_is_archived_searchable_and_shown(self):
+        queued = {"type": "attachment", "timestamp": stamp("2026-11-20", 40), "attachment": {
+            "type": "queued_command", "commandMode": "prompt", "origin": {"kind": "human"},
+            "prompt": "mid-turn question about the ibex"}}
+        write_session(self.pdir, sid(1), [("hello", "hi")], blocks=[queued])
+        self.ingest()
+        hit = self.hit_lines(self.search(sid(1), "ibex"))[0]
+        self.assertIn(" user | ", hit)
+        code, out = self.cli("show", sid(1), hit.split(" @")[1].split()[0])
+        self.assertIn("mid-turn question about the ibex", out)
+
+    def test_skip_marker_typed_mid_turn_keeps_the_session_out(self):
+        queued = {"type": "attachment", "timestamp": stamp("2026-11-20", 40), "attachment": {
+            "type": "queued_command", "commandMode": "prompt", "origin": {"kind": "human"},
+            "prompt": "secret [recall:skip]"}}
+        write_session(self.pdir, sid(1), [("plain talk about the lynx", "ok")], blocks=[queued])
+        self.ingest()
+        self.assertFalse((self.store / "archive" / SLUG / f"{sid(1)}.jsonl.gz").exists())
+        self.assertEqual(self.hit_lines(self.search(sid(1), "lynx")), [])
+
     def test_grown_transcript_replaces_its_rows(self):
         write_session(self.pdir, sid(1), [("first apple", "ok")])
         self.ingest()

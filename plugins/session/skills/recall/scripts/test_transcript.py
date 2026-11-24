@@ -49,11 +49,65 @@ class RealPromptTest(unittest.TestCase):
         self.assertIsNone(tr.real_prompt(e))
 
 
+def queued(prompt, kind="human", **kw):
+    """A message typed while Claude was working: the transcript stores it only as this entry."""
+    att = {"type": "queued_command", "prompt": prompt, "commandMode": "prompt",
+           "origin": {"kind": kind}, **kw}
+    return {"type": "attachment", "timestamp": "2026-11-01T10:00:03.000Z", "attachment": att}
+
+
+class QueuedPromptTest(unittest.TestCase):
+    def test_a_queued_human_message_is_a_real_prompt(self):
+        self.assertEqual(tr.real_prompt(queued("also fix the parser")), "also fix the parser")
+
+    def test_a_queued_message_may_hold_blocks(self):
+        self.assertEqual(tr.real_prompt(queued([{"type": "text", "text": "block ask"}])), "block ask")
+
+    def test_queued_notifications_and_peer_messages_are_not_prompts(self):
+        self.assertIsNone(tr.real_prompt(queued("<task-notification>x", kind="task-notification")))
+        self.assertIsNone(tr.real_prompt(queued("from a peer", kind="peer", isMeta=True)))
+
+    def test_other_attachments_are_not_prompts(self):
+        e = {"type": "attachment", "attachment": {"type": "diagnostics", "prompt": "x"}}
+        self.assertIsNone(tr.real_prompt(e))
+
+    def test_the_archive_keeps_queued_messages_only(self):
+        kept = tr.keep([queued("mid-turn ask"),
+                        {"type": "attachment", "attachment": {"type": "diagnostics"}}])
+        self.assertEqual(len(kept), 1)
+        self.assertEqual(kept[0]["attachment"]["prompt"], "mid-turn ask")
+
+    def test_a_queued_message_is_indexed_and_can_carry_the_skip_flag(self):
+        kept = tr.keep([user("start"), queued("secret [recall:skip]")])
+        self.assertIn(("user", "1", "2026-11-01T10:00:03.000Z", "secret [recall:skip]"),
+                      tr.rows(kept))
+        self.assertTrue(tr.meta(kept)["skip"])
+
+
+class SlashCommandArgsTest(unittest.TestCase):
+    def command(self, args):
+        return user("<command-message>review</command-message>\n<command-name>/review</command-name>\n"
+                    f"<command-args>{args}</command-args>")
+
+    def test_the_arguments_are_what_the_person_typed(self):
+        self.assertEqual(tr.real_prompt(self.command("the auth module [recall:skip]")),
+                         "the auth module [recall:skip]")
+        self.assertTrue(tr.meta([self.command("secret [recall:skip]")])["skip"])
+
+    def test_a_command_without_arguments_stays_a_non_prompt(self):
+        self.assertIsNone(tr.real_prompt(self.command("")))
+        self.assertIsNone(tr.real_prompt(self.command("  ")))
+
+    def test_the_arguments_are_indexed(self):
+        rows = tr.rows([self.command("find the kestrel")])
+        self.assertEqual([(r[0], r[3]) for r in rows], [("user", "find the kestrel")])
+
+
 class KeepTest(unittest.TestCase):
     def test_conversation_entries_stay_and_bookkeeping_goes(self):
         entries = [{"type": t} for t in (
             "user", "assistant", "system", "summary", "custom-title", "ai-title",
-            "api-request-blob", "api-request", "attachment", "file-history-snapshot", "mode")]
+            "api-request-blob", "api-request", "file-history-snapshot", "mode")]
         self.assertEqual([e["type"] for e in tr.keep(entries)],
                          ["user", "assistant", "system", "summary", "custom-title", "ai-title"])
 

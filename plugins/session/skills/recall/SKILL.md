@@ -78,4 +78,5 @@ Set them in the `env` block of the project's `.claude/settings.json`:
 - `RECALL_RETENTION_DAYS` (default 180): how long the archive keeps a session after it ends.
 - `RECALL_DEPTH` (default 10): how far back the chain is followed.
 
-To keep a single session out, put `[recall:skip]` anywhere in one of its prompts.
+To keep a single session out, put `[recall:skip]` anywhere in one of its prompts. That includes a
+message typed while Claude is working and the arguments of a slash command.
