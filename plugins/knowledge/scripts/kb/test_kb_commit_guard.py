@@ -209,6 +209,47 @@ class SnapshotDiffTest(unittest.TestCase):
                           "this run's own untracked write should have been rolled back")
 
 
+class GlobPathspecTest(unittest.TestCase):
+    """`scribe.pathspecs` may hold a glob such as `shared/*/.claude/knowledge`. Passed to
+    git as is, that glob must match a whole file path, so it matches no file under the folders
+    and `git status` reports nothing there: the start-of-run check would wave through dirt in
+    every service registry."""
+
+    def _repo(self):
+        root = make_repo()
+        write_file(root, ".claude/knowledge/a.yaml", "v1")
+        write_file(root, "shared/svc/.claude/knowledge/b.yaml", "v1")
+        commit_all(root, "baseline")
+        return root
+
+    def test_glob_entry_reports_dirt_in_every_matching_folder(self):
+        root = self._repo()
+        write_file(root, "shared/svc/.claude/knowledge/b.yaml", "v2")
+        write_file(root, "shared/svc/.claude/knowledge/new.yaml", "untracked")
+
+        dirty = kcg.snapshot(root, [".claude/knowledge", "shared/*/.claude/knowledge"])
+
+        self.assertEqual(dirty, {"shared/svc/.claude/knowledge/b.yaml",
+                                 "shared/svc/.claude/knowledge/new.yaml"})
+
+    def test_glob_matching_nothing_does_not_widen_to_the_whole_repo(self):
+        root = self._repo()
+        write_file(root, "outside.txt", "dirt outside every pathspec")
+
+        self.assertEqual(kcg.snapshot(root, ["nowhere/*/.claude/knowledge"]), set())
+
+    def test_expand_pathspec_lists_glob_matches_and_drops_globs_matching_nothing(self):
+        root = self._repo()
+        write_file(root, "shared/other/.claude/knowledge/c.yaml", "v1")
+
+        spec = kcg.expand_pathspec(root, [".claude/knowledge", "shared/*/.claude/knowledge",
+                                          "nowhere/*/.claude/knowledge"])
+
+        self.assertEqual(spec, [".claude/knowledge",
+                                "shared/other/.claude/knowledge",
+                                "shared/svc/.claude/knowledge"])
+
+
 # ---------------------------------------------------------------------------
 # exists_at_head predicate
 # ---------------------------------------------------------------------------

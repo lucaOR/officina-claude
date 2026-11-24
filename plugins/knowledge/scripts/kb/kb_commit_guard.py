@@ -163,15 +163,40 @@ def _porcelain_paths(output: str) -> list:
     return paths
 
 
-def snapshot(root, pathspec, run=run_git, *, lease: str | None = None) -> set:
-    """git status --porcelain over `pathspec` (directory paths — never a `*.yaml` glob, which
-    would silently miss tracked non-yaml files like `epics/*.yaml`). Every pathspec entry and
-    every reported path is symlink-normalized via normalize_path(). `--untracked-files=all` so an
-    entirely-untracked directory is reported file-by-file rather than collapsed to one line —
-    collapsing would hide exactly the kind of foreign write this guard exists to catch."""
+def expand_pathspec(root, pathspec, *, lease: str | None = None) -> list:
+    """`scribe.pathspecs` as git-ready, symlink-normalized directory paths: each glob entry
+    (`shared/*/.claude/knowledge`) becomes the paths it matches under `root`, sorted, and
+    a glob matching nothing is dropped; a plain entry stays as it is. Handed to git unexpanded,
+    such a glob has to match a whole file path, so it matches no file inside the folders and
+    `git status` silently reports nothing there, while `git add` refuses it outright. The run's
+    snapshots and its commit both take their pathspec from here, so they see the same folders."""
     root = Path(root)
     lib.refresh_lease(root, lease)
-    normalized_spec = [normalize_path(p, root) for p in pathspec]
+    out = []
+    for entry in pathspec:
+        entry = str(entry)
+        matches = ([m.relative_to(root).as_posix() for m in sorted(root.glob(entry))]
+                   if any(c in entry for c in "*?[") else [entry])
+        for m in matches:
+            m = normalize_path(m, root)
+            if m not in out:
+                out.append(m)
+    return out
+
+
+def snapshot(root, pathspec, run=run_git, *, lease: str | None = None) -> set:
+    """git status --porcelain over `pathspec` (directory paths — never a `*.yaml` glob, which
+    would silently miss tracked non-yaml files like `epics/*.yaml`), expanded and
+    symlink-normalized through expand_pathspec(); every reported path is normalized too.
+    `--untracked-files=all` so an entirely-untracked directory is reported file-by-file rather
+    than collapsed to one line — collapsing would hide exactly the kind of foreign write this
+    guard exists to catch. A pathspec that expands to nothing reports nothing: a bare
+    `git status --` would cover the whole repository."""
+    root = Path(root)
+    lib.refresh_lease(root, lease)
+    normalized_spec = expand_pathspec(root, pathspec)
+    if not normalized_spec:
+        return set()
     code, out, err = run(
         ["status", "--porcelain", "--untracked-files=all", "--", *normalized_spec], root)
     if code != 0:

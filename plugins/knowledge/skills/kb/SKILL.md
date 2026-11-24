@@ -53,8 +53,8 @@ It prints the **run id**; keep it for the whole run and pass it everywhere below
 - Every script call below passes `--lease <run id>` (`check.py`, `validate.py`, `build_digest.py`,
   `report.py`, `kb_audit.py`, and the scripts `knowledge:knowledge-check` and `knowledge:knowledge-route` run on this
   run's behalf). Every library call passes `lease=<run id>` (`kb_queue.read_unconsumed`,
-  `kb_queue.mark_consumed`, and `kb_commit_guard.normalize_path`, `snapshot`, `diff`,
-  `exists_at_head`, `rollback`). Only a call carrying the matching run id refreshes the lease, so
+  `kb_queue.mark_consumed`, and `kb_commit_guard.normalize_path`, `expand_pathspec`, `snapshot`,
+  `diff`, `exists_at_head`, `rollback`). Only a call carrying the matching run id refreshes the lease, so
   pushes, git hooks and other sessions can never keep a dead run's lease alive.
 - Any refusal or abort below, and step 10, ends with
   `python3 "${CLAUDE_SKILL_DIR}/../../scripts/kb/kb_lease.py" release --lease <run id>`.
@@ -67,8 +67,9 @@ rollback: rollback then means deleting the files this run created and restoring 
 Everything else, the lease and the queue included, works the same.
 
 0. **Precondition.** Snapshot (`kb_commit_guard.snapshot(..., lease=<run id>)`) `git status --porcelain` over the commit pathspec
-   (`scribe.pathspecs` in `.claude/knowledge/config.yaml`, default `.claude/knowledge`),
-   normalized through the `scribe.path_translations` symlink translation (below). Non-empty → **refuse the run
+   (`scribe.pathspecs` in `.claude/knowledge/config.yaml`, default `.claude/knowledge`), passed
+   as configured: `snapshot` expands its glob entries itself and normalizes them through the
+   `scribe.path_translations` symlink translation (below). Non-empty → **refuse the run
    immediately** (release the lease), report the foreign paths by name, do not proceed to step 1. This catches dirt
    already inside the pathspec at run start, which a pathspec-limited commit would otherwise
    silently sweep in regardless of what later steps write.
@@ -121,11 +122,15 @@ Everything else, the lease and the queue included, works the same.
    foreign dirt present *before* the run started; this step catches a write landing *during* the
    run. Neither substitutes for the other.
 9. **On a clean diff, in this exact order:**
-   1. Build the pathspec from `scribe.pathspecs` in `.claude/knowledge/config.yaml` (default
-      `[.claude/knowledge]`). Expand any glob entry, and keep **only the entries that actually
-      match something** in this checkout — glob it, don't assume it. (A project that keeps its
-      service registries under one shared directory, for example, lists `.claude/knowledge`
-      plus `shared/*/.claude/knowledge`.) A pathspec entry matching nothing aborts a real `git commit` (measured:
+   1. Build the pathspec with `kb_commit_guard.expand_pathspec(<root>, <scribe.pathspecs>,
+      lease=<run id>)` (`scribe.pathspecs` in `.claude/knowledge/config.yaml`, default
+      `[.claude/knowledge]`). It expands each glob entry to the folders it matches in this
+      checkout and drops a glob matching nothing, the same expansion both snapshots used; never
+      hand git an unexpanded glob, which `git status` silently matches to no file and `git add`
+      refuses. (A project that keeps its service registries under one shared directory, for
+      example, lists `.claude/knowledge` plus `shared/*/.claude/knowledge`.) A plain entry is
+      kept as written, so the snapshots still see a folder deleted whole; before the commit, drop
+      a plain entry that names no folder in this checkout. A pathspec entry matching nothing aborts a real `git commit` (measured:
       exit 1 on git 2.43.0, both plain and glob pathspec forms — not a hypothetical, and not
       128, so don't code a 128 check). Directory form throughout — never a `*.yaml` header glob,
       which silently drops tracked non-YAML files (e.g. `epics/*.yaml` is fine, but a glob
@@ -357,7 +362,7 @@ since GREEN means a re-run against what actually ships:
    `knowledge:knowledge-check` flags only as non-blocking. Confirm the run completes normally and the
    finding is surfaced alongside the commit confirmation, not silently dropped.
 9. **New in GREEN, not covered by any RED scenario yet.** In a checkout with no
-   extra `scribe.pathspecs` directories at all, confirm step 9.1's glob correctly
+   extra `scribe.pathspecs` directories at all, confirm step 9.1's `expand_pathspec` correctly
    produces a pathspec of just `.claude/knowledge` and the commit does not abort.
 10. **New in GREEN.** Force a post-commit verification mismatch (e.g. stub the write manifest to
     omit a file steps 5-7 actually wrote) and confirm the run reports a hard error and does not
