@@ -153,6 +153,18 @@ class MalformedLineTest(unittest.TestCase):
         self.assertEqual(json.loads(after[1])["id"], id2)
 
 
+class TruncatedLastLineTest(unittest.TestCase):
+    def test_push_after_a_last_line_without_newline_keeps_both_entries(self):
+        root = make_repo()
+        id1 = kq.push("a", root=root)
+        queue_file = kq.paths.local_dir(root) / "queue.md"
+        queue_file.write_bytes(queue_file.read_bytes().rstrip(b"\n"))
+        id2 = kq.push("b", root=root)
+        rows, skipped = kq.scan(root)
+        self.assertEqual(skipped, 0)
+        self.assertEqual([r["id"] for r in rows], [id1, id2])
+
+
 class ConcurrencyTest(unittest.TestCase):
     def test_concurrent_pushes_from_real_processes_land_as_n_complete_lines(self):
         root = make_repo()

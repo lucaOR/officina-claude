@@ -124,8 +124,13 @@ def push(text: str, pusher: str | None = None, artifact_refs=None,
     line = (json.dumps(record, sort_keys=True) + "\n").encode("utf-8")
 
     with _locked(lock_file):
-        fd = os.open(str(queue_file), os.O_APPEND | os.O_CREAT | os.O_WRONLY, 0o644)
+        fd = os.open(str(queue_file), os.O_APPEND | os.O_CREAT | os.O_RDWR, 0o644)
         try:
+            # A last line cut short (a crash, a hand edit) has no "\n"; without one the new
+            # entry would be glued onto it and both would stop parsing. Checked under the lock.
+            size = os.fstat(fd).st_size
+            if size and os.pread(fd, 1, size - 1) != b"\n":
+                line = b"\n" + line
             os.write(fd, line)
         finally:
             os.close(fd)
