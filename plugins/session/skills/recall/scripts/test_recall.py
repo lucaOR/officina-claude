@@ -299,6 +299,66 @@ class SkippedNoteLeakTest(Base):
         self.assertEqual([c.args[0] for c in spy.call_args_list].count(sid(2)), 1)
 
 
+class LateExclusionTest(Base):
+    """A writer excluded after its reader was ingested must still be scrubbed out of the reader."""
+    SECRET = SkippedNoteLeakTest.SECRET
+    reader = SkippedNoteLeakTest.reader
+    archive_text = SkippedNoteLeakTest.archive_text
+    PLACEHOLDER = "[left out: note of a skipped session]"
+
+    def read_first(self):
+        note = str(self.home / ".claude" / "handoff" / f"{sid(2)}.md")
+        self.reader(sid(1), [("Read", {"file_path": note})])
+        write_session(self.pdir, sid(2), [("plain plans", "ok")])
+        self.ingest()
+        self.assertEqual(len(self.hit_lines(self.search(sid(1), "narwhal"))), 1)
+
+    def assert_scrubbed(self):
+        self.assertEqual(self.hit_lines(self.search(sid(1), "narwhal")), [])
+        text = self.archive_text(sid(1))
+        self.assertNotIn(self.SECRET, text)
+        self.assertIn(self.PLACEHOLDER, text)
+        code, out = self.cli("show", sid(1), "2")
+        self.assertNotIn(self.SECRET, out)
+
+    def test_forgetting_the_writer_scrubs_a_reader_ingested_earlier(self):
+        self.read_first()
+        self.assertEqual(self.cli("forget", sid(2))[0], 0)
+        self.assert_scrubbed()
+
+    def test_it_works_when_the_readers_transcript_is_gone(self):
+        self.read_first()
+        (self.pdir / f"{sid(1)}.jsonl").unlink()
+        self.cli("forget", sid(2))
+        self.assert_scrubbed()
+
+    def test_a_writer_found_to_be_skip_marked_on_a_later_ingest_scrubs_its_readers(self):
+        self.read_first()
+        write_session(self.pdir, sid(2), [("plans [recall:skip]", "ok")])
+        self.ingest()
+        self.assert_scrubbed()
+
+    def test_a_writer_on_the_deny_list_scrubs_its_readers_when_ingested(self):
+        self.read_first()
+        recall.save_json("deny.json", [sid(2)])
+        write_session(self.pdir, sid(2), [("plain plans again", "ok")])
+        self.ingest()
+        self.assert_scrubbed()
+
+    def test_rebuild_keeps_the_placeholder_and_the_scrub_still_works_after_it(self):
+        self.read_first()
+        write_session(self.pdir, sid(2), [("plans [recall:skip]", "ok")])
+        self.ingest()
+        self.assertEqual(self.cli("rebuild")[0], 0)
+        self.assert_scrubbed()
+
+    def test_rebuild_relearns_who_read_whose_note(self):
+        self.read_first()
+        self.assertEqual(self.cli("rebuild")[0], 0)
+        self.cli("forget", sid(2))
+        self.assert_scrubbed()
+
+
 class SearchTest(Base):
     def test_hit_in_the_parent_reports_its_distance(self):
         write_session(self.pdir, sid(1), [("the zebra bug", "fixed")])

@@ -211,6 +211,8 @@ class Index:
         else:
             self.fts = row[0] == "1"
         self.db.execute(SESSION_DDL)
+        self.db.execute("CREATE TABLE IF NOT EXISTS note_read(writer TEXT NOT NULL, "
+                        "reader TEXT NOT NULL, PRIMARY KEY(writer, reader))")
         self.db.execute("CREATE INDEX IF NOT EXISTS session_project ON session(project)")
         if self.fts:
             self.db.execute(
@@ -258,6 +260,7 @@ def drop_session(ix, sid, slug=None, exclude=False, parent=None):
     parent = parent or (r[1] if r else None)
     ix.drop_rows(sid)
     ix.db.execute("DELETE FROM session WHERE id = ?", (sid,))
+    ix.db.execute("DELETE FROM note_read WHERE reader = ?", (sid,))
     # With no index row the project is unknown, so every project's archive is searched for it.
     adirs = [store() / "archive" / slug] if slug else sorted((store() / "archive").glob("*"))
     for adir in adirs:
@@ -274,6 +277,7 @@ def drop_session(ix, sid, slug=None, exclude=False, parent=None):
         if slug:
             ix.put(sid, slug, {"parent": parent}, [], excluded=True)
         mark_skip(sid, always=True, parent=parent, slug=slug)
+        scrub_readers(ix, sid)
 
 
 def copy_note(sid):
@@ -342,11 +346,12 @@ def skipped_session(sid) -> bool:
     return bool(f) and tr.meta(tr.keep(tr.read_entries(f)))["skip"]
 
 
-def leave_out_skipped_notes(kept):
+def leave_out_skipped_notes(kept, reads=None):
     """Replace the result of a tool call that read a skipped session's handoff note.
 
     The note text would otherwise land in the reader's tool result, which is archived and
-    indexed. The tool call itself stays.
+    indexed. The tool call itself stays. Every writer whose note was read is added to `reads`,
+    so a writer that is excluded later can be scrubbed out of its readers.
     """
     pattern, verdict, hidden = note_path_re(), {}, set()
     for e in kept:
@@ -357,6 +362,8 @@ def leave_out_skipped_notes(kept):
                 continue
             args = b.get("input") if isinstance(b.get("input"), dict) else {}
             for sid in pattern.findall(str(args.get("file_path") or args.get("command") or "")):
+                if reads is not None and SESSION_ID_RE.match(sid):
+                    reads.add(sid)
                 if sid not in verdict:
                     verdict[sid] = SESSION_ID_RE.match(sid) is not None and skipped_session(sid)
                 if verdict[sid]:
@@ -370,6 +377,57 @@ def leave_out_skipped_notes(kept):
                     and b.get("tool_use_id") in hidden:
                 b["content"] = LEFT_OUT
     return kept
+
+
+def record_reads(ix, reader, writers):
+    """Remember which handoff notes a session read, replacing what was recorded before."""
+    ix.db.execute("DELETE FROM note_read WHERE reader = ?", (reader,))
+    ix.db.executemany("INSERT OR IGNORE INTO note_read VALUES (?, ?)",
+                      [(w, reader) for w in sorted(writers)])
+
+
+def archived_rows(gz: Path, reads=None, scrub=False):
+    """The index rows of one archived session, and its metadata, read from the archive alone.
+
+    With scrub, the notes of sessions that are skipped by now are left out of the archive copy
+    first, in the main transcript and in every subagent file, and the files are rewritten.
+    """
+    sid = gz.name[: -len(".jsonl.gz")]
+    kept = list(tr.read_entries(gz))
+    subs = sorted((gz.parent / sid / "subagents").glob("*.jsonl.gz"))
+    skept = [list(tr.read_entries(sg)) for sg in subs]
+    if scrub:
+        kept = leave_out_skipped_notes(kept, reads)
+        write_gz(gz, kept)
+        for sg, entries in zip(subs, skept):
+            write_gz(sg, leave_out_skipped_notes(entries, reads))
+    elif reads is not None:
+        for entries in [kept, *skept]:
+            leave_out_skipped_notes(entries, reads)      # only to learn who read what
+    meta = tr.meta(kept)
+    rows = tr.rows(kept)
+    for sg, entries in zip(subs, skept):
+        rows += tr.rows(entries, subagent=sg.name[: -len(".jsonl.gz")])
+    return meta, rows
+
+
+def scrub_readers(ix, writer):
+    """A writer is excluded now: rewrite the archive of every session that read its note, then
+    index that archive again. It works from the archive, so the reader's own transcript may be
+    gone."""
+    readers = [r for (r,) in ix.db.execute(
+        "SELECT reader FROM note_read WHERE writer = ?", (writer,)).fetchall()]
+    for reader in readers:
+        row = ix.db.execute("SELECT project, excluded, note, goal FROM session WHERE id = ?",
+                            (reader,)).fetchone()
+        if not row or row[1]:
+            continue
+        gz = store() / "archive" / row[0] / f"{reader}.jsonl.gz"
+        if not gz.is_file():
+            continue
+        meta, rows = archived_rows(gz, scrub=True)
+        copy, extra, goal = note_rows(reader, meta)
+        ix.put(reader, row[0], meta, rows + extra, copy, goal)
 
 
 def ingest_session(ix, state, f: Path):
@@ -396,13 +454,14 @@ def ingest_session(ix, state, f: Path):
         drop_session(ix, sid, slug, exclude=True, parent=meta["parent"])
         state["sessions"][sid] = sig
         return
-    kept = leave_out_skipped_notes(kept)
+    reads = set()
+    kept = leave_out_skipped_notes(kept, reads)
     adir = store() / "archive" / slug
     write_gz(adir / f"{sid}.jsonl.gz", kept)
     rows = tr.rows(kept)
     shutil.rmtree(adir / sid, ignore_errors=True)
     for sf in subagent_files(f):
-        skept = leave_out_skipped_notes(tr.keep(tr.read_entries(sf)))
+        skept = leave_out_skipped_notes(tr.keep(tr.read_entries(sf)), reads)
         if recall_subagent(sf, skept):
             continue
         write_gz(adir / sid / "subagents" / f"{sf.stem}.jsonl.gz", skept)
@@ -411,6 +470,7 @@ def ingest_session(ix, state, f: Path):
         copy_note(sid)
     copy, extra, goal = note_rows(sid, meta)
     ix.put(sid, slug, meta, rows + extra, copy, goal)
+    record_reads(ix, sid, reads)
     state["sessions"][sid] = sig
 
 
@@ -701,13 +761,11 @@ def cmd_rebuild(args):
             sid, slug = gz.name[: -len(".jsonl.gz")], gz.parent.name
             if sid in gone or slug in optedout:
                 continue                     # forgotten or opted out: it must not come back
-            kept = list(tr.read_entries(gz))
-            meta = tr.meta(kept)
-            rows = tr.rows(kept)
-            for sg in sorted((gz.parent / sid / "subagents").glob("*.jsonl.gz")):
-                rows += tr.rows(list(tr.read_entries(sg)), subagent=sg.name[: -len(".jsonl.gz")])
+            reads = set()
+            meta, rows = archived_rows(gz, reads)
             copy, extra, goal = note_rows(sid, meta)
             ix.put(sid, slug, meta, rows + extra, copy, goal)
+            record_reads(ix, sid, reads)
             count += 1
         for marker in sorted((store() / "notes").glob("*.skip")):
             sid, info = marker.stem, read_marker(marker.stem)
