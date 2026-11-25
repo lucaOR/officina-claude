@@ -1,7 +1,7 @@
 // Compact rows to a diagram model. A row is a list of string cells; the grammar is in
 // skills/diagram/reference/rows.md. Every error names the 1-based row it comes from.
 
-export const TYPES = ['sequence', 'workflow', 'erd'];
+export const TYPES = ['sequence', 'workflow', 'erd', 'state'];
 export const NODE_TYPES = ['frontend', 'backend', 'database', 'cloud', 'security', 'messagebus', 'external', 'focus'];
 export const VARIANTS = ['default', 'emphasis', 'security', 'dashed'];
 const KEYS = ['pk', 'fk', 'uk'];
@@ -39,7 +39,7 @@ function normalise(rows) {
 export function parseRows(type, rows) {
   if (!TYPES.includes(type)) fail(null, `type must be one of ${TYPES.join(', ')}, got "${type}"`);
   const list = normalise(rows);
-  return { sequence, workflow, erd }[type](list);
+  return { sequence, workflow, erd, state }[type](list);
 }
 
 // ---- sequence --------------------------------------------------------------------------------
@@ -197,4 +197,48 @@ function erd(rows) {
     rels.push({ from, to, fromCard: card[1], toCard: card[2], label: row[2] || '' });
   });
   return { entities, rels };
+}
+
+// ---- state -----------------------------------------------------------------------------------
+
+function state(rows) {
+  const states = [];
+  const markers = [];
+  const ids = new Set();
+  const order = []; // markers and states in the order the rows declare them
+  const declare = (id, i, what) => {
+    if (ids.has(id)) fail(i, `${what} "${id}" is declared twice`);
+    ids.add(id);
+    order.push(id);
+  };
+  rows.forEach((row, i) => {
+    if (row[0].includes('>')) return;
+    const m = /^(initial|final)\s+(\S+)$/.exec(row[0]);
+    if (m) {
+      cellCount(row, i, m[1], 1, 1);
+      const id = checkId(m[2], i);
+      declare(id, i, `${m[1]} marker`);
+      markers.push({ id, kind: m[1] });
+      return;
+    }
+    cellCount(row, i, 'state', 2, 4);
+    const id = checkId(row[0], i);
+    declare(id, i, 'state');
+    // The group cell is kept in the model; groups are drawn once the engine supports them.
+    states.push({ id, label: needLabel(row[1], i, 'a state'), type: oneOf(row[2], NODE_TYPES, 'type', i, 'backend'), group: row[3] || null });
+  });
+  if (!states.length) fail(null, 'a state diagram needs at least one state');
+
+  const kind = new Map(markers.map(m => [m.id, m.kind]));
+  const transitions = [];
+  rows.forEach((row, i) => {
+    if (!row[0].includes('>')) return;
+    cellCount(row, i, 'transition', 1, 3);
+    const [from, to] = parseEdge(row, i);
+    for (const end of [from, to]) if (!ids.has(end)) fail(i, `unknown state "${end}"`);
+    if (kind.get(from) === 'final') fail(i, `final marker "${from}" cannot have a transition leaving it`);
+    if (kind.get(to) === 'initial') fail(i, `initial marker "${to}" cannot have a transition entering it`);
+    transitions.push({ from, to, label: row[1] || '', variant: oneOf(row[2], VARIANTS, 'variant', i, 'default') });
+  });
+  return { states, markers, transitions, order };
 }
