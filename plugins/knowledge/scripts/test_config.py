@@ -41,6 +41,11 @@ class ConfigCase(unittest.TestCase):
         base = f"{where}/" if where else ""
         self.write(f"{base}.claude/knowledge/t.yaml", RULE.format(scope=scope) + extra)
 
+    def test_capture_default_off_and_validation(self):
+        self.assertEqual(lib.CONFIG_DEFAULTS['scribe']['capture'], 'off')
+        self.assertTrue(lib._VALID_SCRIBE['capture']('auto'))
+        self.assertFalse(lib._VALID_SCRIBE['capture']('always'))
+
     def config(self, text):
         self.write(".claude/knowledge/config.yaml", text)
 

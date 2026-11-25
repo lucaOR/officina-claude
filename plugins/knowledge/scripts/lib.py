@@ -98,7 +98,8 @@ CONFIG_DEFAULTS = {
     "digest_trailer": DEFAULT_TRAILER,
     "digest_guard": None,
     "scribe": {"commit": "commit", "pathspecs": [".claude/knowledge"],
-               "path_translations": [], "audit_every_days": 7, "lease_minutes": 60},
+               "path_translations": [], "audit_every_days": 7, "lease_minutes": 60,
+               "capture": "off"},
 }
 
 CONFIG_REL = Path(".claude") / "knowledge" / "config.yaml"
@@ -141,6 +142,7 @@ _VALID_SCRIBE = {
     "path_translations": _is_dict_list(("from", "to")),
     "audit_every_days": lambda v: _is_int(v) and v >= 0,
     "lease_minutes": lambda v: _is_int(v) and v > 0,
+    "capture": lambda v: v in ("off", "auto", "handoff", "transcript"),
 }
 
 _config_warned = False

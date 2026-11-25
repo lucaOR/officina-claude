@@ -95,7 +95,7 @@ The `ccscribe` shortcut is a short script in `~/.local/bin` that runs the scribe
 
 ## Configuration
 
-`.claude/knowledge/config.yaml` is optional. Without it every key takes its default, so a plain project needs no file. The keys are `root_scope`, `extra_scopes`, `registry_fallbacks`, `unprobed_scopes`, `probe_roots`, `gate_marker`, `digest_trailer`, `digest_guard` and the `scribe` block (`commit`, `pathspecs`, `path_translations`, `audit_every_days`, `lease_minutes`). A key with the wrong type, or an unknown key, falls back to its default and prints one line on stderr. The meaning and default of each key are in [reference/schema.md](reference/schema.md#project-config).
+`.claude/knowledge/config.yaml` is optional. Without it every key takes its default, so a plain project needs no file. The keys are `root_scope`, `extra_scopes`, `registry_fallbacks`, `unprobed_scopes`, `probe_roots`, `gate_marker`, `digest_trailer`, `digest_guard` and the `scribe` block (`commit`, `pathspecs`, `path_translations`, `audit_every_days`, `lease_minutes`, `capture`). A key with the wrong type, or an unknown key, falls back to its default and prints one line on stderr. The meaning and default of each key are in [reference/schema.md](reference/schema.md#project-config).
 
 ## Rule schema
 

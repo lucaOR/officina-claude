@@ -107,6 +107,8 @@ process. Keys are loaded by `lib.load_config(root)`.
   full health sweep.
 - `scribe.lease_minutes` (integer, default `60`) — how long a run lease stays fresh without a
   refresh.
+- `scribe.capture` (`off` | `auto` | `handoff` | `transcript`, default `off`) — whether and how
+  learnings are captured automatically; `off` captures nothing.
 
 Worked example, a repository whose services keep their `.claude/` in a tracked `shared/`
 directory and link it into the service, with a web app and a set of extensions beside them
