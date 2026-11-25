@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { layout } from '../lib/layered.mjs';
 
 const box = (id, lane, w = 100, h = 44) => ({ id, w, h, lane });
@@ -140,4 +141,12 @@ test('a self loop takes the free incoming side, clear of the outgoing edges', ()
   const loop = out.edges[1].points;
   assert.ok(loop.every(p => p.x <= out.nodes.cat.x), 'the loop is not on the left side');
   assert.ok(out.edges[1].label.x + out.edges[1].label.w <= out.nodes.cat.x);
+});
+
+// Recorded before nested groups were added: a graph without groups must lay out exactly as before.
+test('layout without groups matches the recorded plain layouts', () => {
+  const cases = JSON.parse(readFileSync(new URL('./fixtures/layered-plain.json', import.meta.url), 'utf8'));
+  assert.ok(cases.length >= 4);
+  for (const c of cases) assert.deepEqual(JSON.parse(JSON.stringify(layout(c.graph, c.options))), c.out, c.name);
+  for (const c of cases) assert.equal(layout(c.graph, c.options).groupBoxes, undefined, `${c.name} grows no groupBoxes`);
 });

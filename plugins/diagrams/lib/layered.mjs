@@ -10,6 +10,7 @@
 // The layout works on two axes: the rank axis, along which edges flow, and the order axis
 // across it. 'LR' maps rank to x and order to y; 'TB' maps rank to y and order to x.
 // Lanes are bands along the rank axis that each hold their own nodes.
+// Groups nest: each is laid out on its own, then stands as one node in its parent's layout (see layout()).
 
 const DEFAULTS = {
   dir: 'LR',
@@ -27,6 +28,9 @@ const DEFAULTS = {
   sharePorts: true, // forward edges on one side leave or arrive at one shared port
   loop: 18, // how far a self loop reaches out
   sweeps: 8,
+  groupPad: 14, // between a group's border and what it holds
+  groupHeader: 24, // room for a group's label above its content
+  groupMin: { w: 60, h: 20 }, // smallest content area, so an empty group still has a body
 };
 
 const mean = xs => xs.reduce((a, b) => a + b, 0) / xs.length;
@@ -58,7 +62,7 @@ const DUMMY_WEIGHT = 0.25;
 const weight = v => (v.real ? 1 : DUMMY_WEIGHT);
 const overlaps = (a, b, pad = 0) => a.x < b.x + b.w + pad && b.x < a.x + a.w + pad && a.y < b.y + b.h + pad && b.y < a.y + a.h + pad;
 
-export function layout(g, options = {}) {
+function layoutFlat(g, options = {}) {
   const o = { ...DEFAULTS, ...options };
   const LR = o.dir !== 'TB';
   const hasLanes = !!g.lanes?.length;
@@ -445,4 +449,157 @@ export function layout(g, options = {}) {
 
   const size = point(rankExtent, orderExtent);
   return { width: size.x, height: size.y, nodes, edges, lanes };
+}
+
+const tidyPoints = pts => {
+  const out = [];
+  for (const p of pts) {
+    if (out.length && out.at(-1).x === p.x && out.at(-1).y === p.y) continue;
+    if (out.length >= 2) {
+      const [a, b] = [out.at(-2), out.at(-1)];
+      if ((a.x === b.x && b.x === p.x) || (a.y === b.y && b.y === p.y)) out.pop();
+    }
+    out.push(p);
+  }
+  return out;
+};
+
+/**
+ * Layered layout with optional nested groups. `g.groups` is `{id, parent?, minW?}[]` and a node
+ * may name its group in `node.group`. Without groups this is the flat layout, unchanged. With
+ * them the result also holds `groupBoxes`, `{id, x, y, w, h, parent?}[]` in declaration order.
+ *
+ * Bottom-up: a group is laid out as a graph of its own children, and its bounding box plus
+ * padding becomes one node of its parent's layout. An edge between nodes of different groups is
+ * routed at the level of their lowest common ancestor, between the two child items there. It
+ * leaves or enters the item at the order-axis position of the inner node, then runs straight
+ * on to that node's side, so it ends on the node and not on the group border.
+ *
+ * An empty group takes the minimum content area (`groupMin`) plus padding and header.
+ * A bad reference throws `layout: ...`.
+ */
+export function layout(g, options = {}) {
+  if (!g.groups?.length && !g.nodes.some(n => n.group != null)) return layoutFlat(g, options);
+  const o = { ...DEFAULTS, ...options };
+  const LR = o.dir !== 'TB';
+  const groups = g.groups || [];
+  const gById = new Map();
+  for (const gr of groups) {
+    if (gById.has(gr.id)) throw new Error(`layout: duplicate group "${gr.id}"`);
+    gById.set(gr.id, gr);
+  }
+  const nById = new Map(g.nodes.map(n => [n.id, n]));
+  for (const gr of groups) {
+    if (nById.has(gr.id)) throw new Error(`layout: group "${gr.id}" has the id of a node`);
+    if (gr.parent != null && !gById.has(gr.parent)) throw new Error(`layout: group "${gr.id}" has unknown parent "${gr.parent}"`);
+  }
+  const chainOfGroup = id => {
+    const out = [];
+    for (let c = id; c != null; c = gById.get(c).parent) {
+      if (out.includes(c)) throw new Error(`layout: groups nest in a cycle at "${c}"`);
+      out.unshift(c);
+    }
+    return out;
+  };
+  for (const gr of groups) chainOfGroup(gr.id);
+  for (const n of g.nodes) if (n.group != null && !gById.has(n.group)) throw new Error(`layout: node "${n.id}" is in unknown group "${n.group}"`);
+  for (const e of g.edges) {
+    for (const end of [e.from, e.to]) if (!nById.has(end)) throw new Error(`layout: edge refers to unknown node "${end}"`);
+  }
+  const chain = nodeId => chainOfGroup(nById.get(nodeId).group ?? null);
+
+  const kids = new Map([[null, { nodes: [], groups: [] }], ...groups.map(gr => [gr.id, { nodes: [], groups: [] }])]);
+  for (const n of g.nodes) kids.get(n.group ?? null).nodes.push(n);
+  for (const gr of groups) kids.get(gr.parent ?? null).groups.push(gr);
+
+  // The level an edge is routed at: the deepest group holding both ends.
+  const levelEdges = new Map();
+  g.edges.forEach((e, i) => {
+    const [ca, cb] = [chain(e.from), chain(e.to)];
+    let k = 0;
+    while (k < ca.length && k < cb.length && ca[k] === cb[k]) k++;
+    const level = k ? ca[k - 1] : null;
+    if (!levelEdges.has(level)) levelEdges.set(level, []);
+    levelEdges.get(level).push(i);
+  });
+
+  const key = id => `\0group:${id}`;
+  const shift = (r, dx, dy) => ({ ...r, x: r.x + dx, y: r.y + dy });
+  const laneOfGroup = id => g.nodes.find(n => n.lane != null && chain(n.id).includes(id))?.lane;
+
+  // Everything a level returns is in the frame of its own box: pos holds its nodes, boxes its
+  // inner groups, edges the edges routed at this level and below.
+  const build = id => {
+    const root = id === null;
+    const depth = root ? 0 : chainOfGroup(id).length;
+    const own = kids.get(id);
+    const subs = new Map(own.groups.map(gr => [gr.id, build(gr.id)]));
+    const items = [
+      ...own.nodes.map(n => ({ id: n.id, w: n.w, h: n.h, lane: n.lane })),
+      ...own.groups.map(gr => ({ id: key(gr.id), w: subs.get(gr.id).w, h: subs.get(gr.id).h, lane: laneOfGroup(gr.id) })),
+    ];
+    const mine = levelEdges.get(id) || [];
+    // The item at this level holding a node, and where the node sits on the order axis within it.
+    const endOf = nodeId => {
+      const c = chain(nodeId);
+      if (c.length <= depth) return { item: nodeId };
+      const r = subs.get(c[depth]).pos.get(nodeId);
+      return { item: key(c[depth]), inner: r, port: LR ? r.y + r.h / 2 : r.x + r.w / 2 };
+    };
+    const ends = mine.map(i => [endOf(g.edges[i].from), endOf(g.edges[i].to)]);
+    const flatEdges = mine.map((i, k) => {
+      const e = g.edges[i];
+      const [a, b] = ends[k];
+      return { from: a.item, to: b.item, label: e.label, fromPort: a.port ?? e.fromPort, toPort: b.port ?? e.toPort };
+    });
+    const out = items.length
+      ? layoutFlat({ nodes: items, edges: flatEdges, lanes: root ? g.lanes : undefined }, root ? options : { ...options, margin: 0 })
+      : { width: 0, height: 0, nodes: {}, edges: [], lanes: [] };
+
+    const pad = root ? 0 : o.groupPad;
+    const [ox, oy] = root ? [0, 0] : [pad, o.groupHeader + pad];
+    const inner = { w: Math.max(out.width, root ? 0 : o.groupMin.w), h: Math.max(out.height, root ? 0 : o.groupMin.h) };
+    const minW = root ? 0 : gById.get(id).minW ?? 0;
+    const result = {
+      w: root ? out.width : Math.max(inner.w + 2 * pad, minW),
+      h: root ? out.height : inner.h + oy + pad,
+      lanes: out.lanes,
+      pos: new Map(), boxes: [], edges: [],
+    };
+    for (const n of own.nodes) result.pos.set(n.id, shift(out.nodes[n.id], ox, oy));
+    for (const gr of own.groups) {
+      const item = out.nodes[key(gr.id)];
+      const sub = subs.get(gr.id);
+      const [dx, dy] = [item.x + ox, item.y + oy];
+      result.boxes.push({ id: gr.id, x: dx, y: dy, w: item.w, h: item.h, ...(root ? {} : { parent: id }) });
+      for (const [nid, r] of sub.pos) result.pos.set(nid, shift(r, dx, dy));
+      for (const b of sub.boxes) result.boxes.push(shift(b, dx, dy));
+      for (const e of sub.edges) result.edges.push({ ...e, points: e.points.map(p => shift(p, dx, dy)), label: e.label && shift(e.label, dx, dy) });
+    }
+    mine.forEach((i, k) => {
+      const r = out.edges[k];
+      const pts = r.points;
+      // Past the item's border, straight on to the side of the inner node that faces it.
+      const reach = (p, end) => {
+        if (!end.inner) return [];
+        const item = out.nodes[end.item];
+        const at = shift(end.inner, item.x, item.y);
+        return [LR ? { x: p.x <= item.x + 0.01 ? at.x : at.x + at.w, y: p.y } : { x: p.x, y: p.y <= item.y + 0.01 ? at.y : at.y + at.h }];
+      };
+      const full = tidyPoints([...reach(pts[0], ends[k][0]), ...pts, ...reach(pts.at(-1), ends[k][1])]);
+      result.edges.push({ idx: i, points: full.map(p => shift(p, ox, oy)), label: r.label && shift(r.label, ox, oy), reversed: r.reversed });
+    });
+    return result;
+  };
+
+  const top = build(null);
+  const nodes = {};
+  for (const n of g.nodes) nodes[n.id] = top.pos.get(n.id);
+  const boxOf = new Map(top.boxes.map(b => [b.id, b]));
+  return {
+    width: top.w, height: top.h, nodes,
+    edges: [...top.edges].sort((a, b) => a.idx - b.idx).map(({ points, label, reversed }) => ({ points, label, reversed })),
+    lanes: top.lanes,
+    groupBoxes: groups.map(gr => boxOf.get(gr.id)),
+  };
 }

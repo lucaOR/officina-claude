@@ -42,6 +42,16 @@ export function plate(box, text, cls, size) {
     + el('text', { x: box.x + box.w / 2, y: box.y + box.h / 2 + size * 0.35, 'text-anchor': 'middle' }, esc(text)));
 }
 
+/**
+ * Group frames, outermost first so an inner frame draws over its parent. `boxes` are the layout's
+ * group boxes (`parent` set when nested) and `label(id)` gives the plain text of a title.
+ */
+export function groupFrames(boxes, label) {
+  const depth = b => { let n = 0; for (let p = b.parent; p !== undefined; p = boxes.find(x => x.id === p)?.parent) n++; return n; };
+  return [...boxes].sort((a, b) => depth(a) - depth(b)).map(b => el('g', { class: `dg-group${b.parent === undefined ? '' : ' dg-group-nested'}`, 'data-group-id': b.id },
+    el('rect', { x: b.x, y: b.y, width: b.w, height: b.h, rx: 10 }) + el('text', { x: b.x + 12, y: b.y + 17 }, esc(label(b.id))))).join('');
+}
+
 const ARROW_VARIANTS = ['default', 'emphasis', 'security', 'dashed'];
 export const arrowRef = (p, variant) => `url(#${p}${variant === 'return' ? 'open' : `arrow-${variant}`})`;
 

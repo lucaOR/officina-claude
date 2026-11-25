@@ -224,7 +224,7 @@ function state(rows) {
     cellCount(row, i, 'state', 2, 4);
     const id = checkId(row[0], i);
     declare(id, i, 'state');
-    // The group cell is kept in the model; groups are drawn once the engine supports them.
+    // The group cell names a flat group; the state drawer frames the states that share one.
     states.push({ id, label: needLabel(row[1], i, 'a state'), type: oneOf(row[2], NODE_TYPES, 'type', i, 'backend'), group: row[3] || null });
   });
   if (!states.length) fail(null, 'a state diagram needs at least one state');

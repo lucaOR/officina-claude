@@ -2,7 +2,7 @@
 // and transitions routed by the layered layout. A transition may return to its own state.
 import { layout } from './layered.mjs';
 import { textWidth, wrap, esc } from './text.mjs';
-import { el, roundedPath, lines, plate, arrowRef, VARIANT_CLASS } from './svg.mjs';
+import { el, roundedPath, lines, plate, arrowRef, groupFrames, VARIANT_CLASS } from './svg.mjs';
 
 const FONT = 13;
 const LINE = 17;
@@ -18,14 +18,17 @@ export function state(model, { p }) {
     ...model.states.map(s => {
       const text = wrap(s.label, MAX_TEXT, FONT, true);
       const tw = Math.max(...text.map(l => textWidth(l, FONT, true)));
-      return { id: s.id, text, w: Math.round(Math.max(88, tw + 32)), h: Math.max(40, text.length * LINE + 18) };
+      return { id: s.id, text, ...(s.group ? { group: `group:${s.group}` } : {}), w: Math.round(Math.max(88, tw + 32)), h: Math.max(40, text.length * LINE + 18) };
     }),
   ];
   const edges = model.transitions.map(t => ({
     from: t.from, to: t.to,
     label: t.label ? { w: Math.round(textWidth(t.label, LABEL_FONT) + 12), h: 18 } : null,
   }));
-  const graph = { nodes, edges };
+  // A state's group cell names a flat group (nesting is for diagrams that declare parents).
+  const groupNames = [...new Set(model.states.filter(s => s.group).map(s => s.group))];
+  const gid = name => `group:${name}`;
+  const graph = { nodes, edges, ...(groupNames.length ? { groups: groupNames.map(name => ({ id: gid(name), minW: Math.round(textWidth(name, 12, true) + 36) })) } : {}) };
   let out = layout(graph);
   if (out.width > WIDE) {
     const tall = layout(graph, { dir: 'TB' });
@@ -56,12 +59,20 @@ export function state(model, { p }) {
       + lines(r.x + r.w / 2, r.y + r.h / 2, text, 'dg-node-label', LINE, FONT));
   }).join('');
 
+  const groupSvg = groupFrames(out.groupBoxes || [], id => id.slice('group:'.length));
   const ids = model.order;
   return {
     width: out.width, height: out.height,
-    body: edgeSvg + labelSvg + markerSvg + stateSvg,
+    body: groupSvg + edgeSvg + labelSvg + markerSvg + stateSvg,
     nodes: ids,
-    boxes: ids.map(id => { const { x, y, w, h } = out.nodes[id]; return { id, x, y, w, h }; }),
+    boxes: [
+      ...ids.map(id => {
+        const { x, y, w, h } = out.nodes[id];
+        const group = model.states.find(s => s.id === id)?.group;
+        return { id, x, y, w, h, ...(group ? { parent: gid(group) } : {}) };
+      }),
+      ...(out.groupBoxes || []),
+    ],
     desc: `State diagram of ${model.states.length} states and ${model.transitions.length} transitions.`,
   };
 }
