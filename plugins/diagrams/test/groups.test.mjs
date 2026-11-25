@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { layout } from '../lib/layered.mjs';
 import { stylesheet } from '../lib/style.mjs';
-import { assertClean } from './geometry.mjs';
+import { assertClean, assertNoEdgeThroughNode, onBorder } from './geometry.mjs';
 
 const n = (id, group, w = 100, h = 44) => ({ id, w, h, ...(group ? { group } : {}) });
 const e = (from, to) => ({ from, to, label: null });
@@ -140,19 +140,6 @@ test('groups: a group whose members sit in different lanes throws', () => {
   assert.throws(() => layout(missing), /group "g" spans lanes "x" and "null"/);
 });
 
-// A segment crosses a box when it enters the box's interior.
-const crosses = (p, q, b) => Math.max(p.x, q.x) > b.x + 0.5 && Math.min(p.x, q.x) < b.x + b.w - 0.5
-  && Math.max(p.y, q.y) > b.y + 0.5 && Math.min(p.y, q.y) < b.y + b.h - 0.5;
-// Every edge must stay out of the node boxes it does not end at.
-const assertNoEdgeThroughNode = (g, r) => {
-  g.edges.forEach((ed, i) => {
-    const pts = r.edges[i].points;
-    for (const nd of g.nodes) {
-      if (nd.id === ed.from || nd.id === ed.to) continue;
-      for (let k = 1; k < pts.length; k++) assert.ok(!crosses(pts[k - 1], pts[k], r.nodes[nd.id]), `edge ${i} crosses node ${nd.id}`);
-    }
-  });
-};
 const chainG = (label = null) => ({ nodes: [n('a', 'g'), n('b', 'g'), n('c', 'g'), n('x')], edges: [e('a', 'b'), e('b', 'c'), { from: 'x', to: 'c', label }], groups: [{ id: 'g' }] });
 
 test('groups: an edge into a group does not run through a sibling of its target', () => {
@@ -207,4 +194,30 @@ test('groups: the stylesheet styles groups, and nested ones differently, through
   assert.match(css, /\.x \.dg-group rect\{[^}]*fill:var\(--dg-lane\)[^}]*stroke:var\(--dg-rule\)/);
   assert.match(css, /\.x \.dg-group text\{[^}]*fill:var\(--dg-muted\)/);
   assert.match(css, /\.x \.dg-group\.dg-group-nested rect\{[^}]*var\(--dg-panel\)/);
+});
+
+// A seeded sweep over small grouped graphs: no edge crosses a node it does not end at, and every
+// edge starts and ends on the border of its own node.
+test('groups: a seeded sweep of grouped graphs keeps edges off other nodes and on their own', () => {
+  for (let seed = 1; seed <= 100; seed++) {
+    let s = seed;
+    const rnd = k => { s = (s * 1103515245 + 12345) % 2147483648; return s % k; };
+    const ids = ['g0', 'g1', 'g00', 'g01'];
+    const groups = [{ id: 'g0' }, { id: 'g1' }, { id: 'g00', parent: 'g0' }, { id: 'g01', parent: 'g0' }];
+    const count = 6 + rnd(9);
+    const nodes = Array.from({ length: count }, (_, i) => n(`c${i}`, rnd(5) === 4 ? undefined : ids[rnd(4)], 96 + rnd(60), 44));
+    const edges = [];
+    for (let i = 1; i < count; i++) edges.push(e(`c${rnd(i)}`, `c${i}`));
+    for (let k = 0; k < Math.floor(count / 3); k++) { const a = rnd(count), b = rnd(count); if (a !== b) edges.push(e(`c${a}`, `c${b}`)); }
+    const g = { nodes, edges, groups };
+    for (const opts of [{}, { dir: 'TB' }]) {
+      const r = layout(g, opts);
+      assertNoEdgeThroughNode(g, r);
+      edges.forEach((ed, i) => {
+        const pts = r.edges[i].points;
+        assert.ok(onBorder(pts[0], r.nodes[ed.from]), `seed ${seed} ${JSON.stringify(opts)}: edge ${i} starts off ${ed.from}`);
+        assert.ok(onBorder(pts.at(-1), r.nodes[ed.to]), `seed ${seed} ${JSON.stringify(opts)}: edge ${i} ends off ${ed.to}`);
+      });
+    }
+  }
 });

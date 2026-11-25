@@ -482,9 +482,9 @@ const tidyPoints = pts => {
 // Boxes are {a0, a1, b0, b1}: a is the rank axis, b the order axis.
 const KEEP = 3; // clearance kept between an edge and a node it does not end at
 const toAB = (LR, r) => LR ? { a0: r.x, a1: r.x + r.w, b0: r.y, b1: r.y + r.h } : { a0: r.y, a1: r.y + r.h, b0: r.x, b1: r.x + r.w };
-const segBlocked = (boxes, p, q) => {
+const segBlocked = (boxes, p, q, keep = KEEP) => {
   const [a0, a1, b0, b1] = [Math.min(p.a, q.a), Math.max(p.a, q.a), Math.min(p.b, q.b), Math.max(p.b, q.b)];
-  return boxes.some(r => a1 > r.a0 - KEEP && a0 < r.a1 + KEEP && b1 > r.b0 - KEEP && b0 < r.b1 + KEEP);
+  return boxes.some(r => a1 > r.a0 - keep && a0 < r.a1 + keep && b1 > r.b0 - keep && b0 < r.b1 + keep);
 };
 // The midpoints of the gaps between the merged spans [lo, hi] of the boxes, and the overall extent.
 function gapMids(boxes, lo, hi) {
@@ -498,11 +498,11 @@ function gapMids(boxes, lo, hi) {
   return { mids, min: spans[0]?.[0], max: end };
 }
 // From the border point (at rank `border`, order q) to the facing side of the target box T, or null.
-function innerRoute(boxes, T, border, q, lo, pad) {
+function innerRoute(boxes, T, border, q, lo, pad, keep = KEEP) {
   const c = (T.b0 + T.b1) / 2;
   const E = { a: lo ? T.a0 : T.a1, b: c };
   const S = { a: border, b: q };
-  const free = pts => pts.slice(1).every((pt, i) => !segBlocked(boxes, pts[i], pt));
+  const free = pts => pts.slice(1).every((pt, i) => !segBlocked(boxes, pts[i], pt, keep));
   const len = pts => pts.slice(1).reduce((sum, pt, i) => sum + Math.abs(pt.a - pts[i].a) + Math.abs(pt.b - pts[i].b), 0);
   if (Math.abs(q - c) <= 1) {
     const straight = [S, { a: E.a, b: q }];
@@ -510,7 +510,7 @@ function innerRoute(boxes, T, border, q, lo, pad) {
   }
   if (!boxes.length) return null;
   const { mids, min, max } = gapMids(boxes, 'a0', 'a1');
-  const corridors = [...mids, min - pad / 2, max + pad / 2].filter(x => lo ? x >= border && x < E.a : x <= border && x > E.a);
+  const corridors = [...mids, min - pad / 2, max + pad / 2, E.a + (lo ? -pad / 2 : pad / 2)].filter(x => lo ? x >= border && x < E.a : x <= border && x > E.a);
   let best = null;
   for (const x of corridors) {
     const pts = [S, { a: x, b: q }, { a: x, b: c }, E];
@@ -526,7 +526,8 @@ function entryPort(others, T, border, lo, pad) {
   const { mids } = gapMids(others, 'b0', 'b1');
   const all = gapMids([...others, T], 'b0', 'b1');
   const cost = q => {
-    const route = innerRoute(others, T, border, q, lo, pad);
+    // One unit more clearance than reach() asks for, so rounding the port to whole pixels cannot block it.
+    const route = innerRoute(others, T, border, q, lo, pad, KEEP + 1);
     return route ? route.slice(1).reduce((s, pt, i) => s + Math.abs(pt.a - route[i].a) + Math.abs(pt.b - route[i].b), 0) : 1e6;
   };
   let best = c;
@@ -667,9 +668,15 @@ export function layout(g, options = {}) {
         const item = out.nodes[end.item];
         const at = shift(end.inner, item.x, item.y);
         const lo = LR ? p.x <= item.x + 0.01 : p.y <= item.y + 0.01;
-        const old = [LR ? { x: lo ? at.x : at.x + at.w, y: p.y } : { x: p.x, y: lo ? at.y : at.y + at.h }];
+        // The straight run, if every route is blocked: kept on the node's side by a jog along the border
+        // when the border point lies outside the node's span, so a miss crosses a node, never floats.
+        const T = toAB(LR, at);
+        const q0 = LR ? p.y : p.x;
+        const q = Math.min(Math.max(q0, T.b0 + KEEP), T.b1 - KEEP);
+        const a = lo ? T.a0 : T.a1;
+        const old = [...(q === q0 ? [] : [LR ? { x: p.x, y: q } : { x: q, y: p.y }]), LR ? { x: a, y: q } : { x: q, y: a }];
         const boxes = [...end.sub.pos].filter(([id]) => id !== end.id).map(([, b]) => toAB(LR, shift(b, item.x, item.y)));
-        const route = innerRoute(boxes, toAB(LR, at), LR ? p.x : p.y, LR ? p.y : p.x, lo, o.groupPad);
+        const route = innerRoute(boxes, T, LR ? p.x : p.y, q0, lo, o.groupPad);
         if (!route) return old;
         const pts = route.slice(1).map(pt => LR ? { x: pt.a, y: pt.b } : { x: pt.b, y: pt.a });
         return toEnd ? pts : pts.reverse();

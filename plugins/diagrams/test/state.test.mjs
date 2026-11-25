@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { render, TYPES } from '../lib/index.mjs';
-import { assertClean } from './geometry.mjs';
+import { assertClean, assertRenderedNoThrough } from './geometry.mjs';
 
 const spec = { type: 'state', title: 'Order', rows: [['initial s0'], ['new', 'New'], ['paid', 'Paid', 'backend'], ['done', 'Shipped'], ['final f0'], ['s0 > new'], ['new > paid', 'pay'], ['paid > paid', 'retry', 'dashed'], ['paid > done', 'ship'], ['done > f0']] };
 const bad = rows => () => render({ type: 'state', title: 't', rows });
@@ -66,4 +66,9 @@ test('state: without a group cell no frame is drawn', () => {
   const r = render(spec);
   assert.doesNotMatch(r.svg, /dg-group/);
   assert.ok(r.boxes.every(b => b.parent === undefined));
+});
+
+test('state: an edge into a group does not run through a node beside its target', () => {
+  const s = { type: 'state', title: 'T', rows: [['initial start'], ['idle', 'Idle'], ['loading', 'Loading', '', 'Active'], ['playing', 'Playing', '', 'Active'], ['paused', 'Paused', '', 'Active'], ['error', 'Error', 'security'], ['final end'], ['start > idle'], ['idle > loading', 'open'], ['loading > playing', 'ready'], ['playing > paused', 'pause'], ['paused > playing', 'resume'], ['loading > error', 'fail'], ['playing > idle', 'stop'], ['error > end']] };
+  assertRenderedNoThrough(s, render(s));
 });

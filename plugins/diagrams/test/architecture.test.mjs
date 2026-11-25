@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { render, TYPES } from '../lib/index.mjs';
-import { assertClean } from './geometry.mjs';
+import { assertClean, assertRenderedNoThrough } from './geometry.mjs';
 
 const spec = { type: 'architecture', title: 'App', rows: [['group vpc', 'VPC'], ['group priv', 'Private subnet', 'vpc'], ['web', 'Web', 'frontend', 'vpc'], ['api', 'API', 'backend', 'priv'], ['db', 'DB', 'database', 'priv'], ['web > api', 'HTTPS'], ['api > db']] };
 const bad = rows => () => render({ type: 'architecture', title: 't', rows });
@@ -86,4 +86,9 @@ test('architecture: bad type, bad id and a missing component are rejected', () =
   assert.throws(bad([['a', 'A', 'nope']]), /^Error: Row 1: type "nope"/);
   assert.throws(bad([['group 1x', 'G']]), /^Error: Row 1: id "1x"/);
   assert.throws(bad([['group g', 'G']]), /at least one component/);
+});
+
+test('architecture: an edge into a group does not run through a node beside its target', () => {
+  const s = { type: 'architecture', title: 'T', rows: [['group cloud', 'Cloud'], ['group vpc', 'VPC', 'cloud'], ['group edge', 'Edge'], ['web', 'Web', 'frontend', 'vpc'], ['api', 'API', 'backend', 'vpc'], ['cdn', 'CDN', 'cloud', 'edge'], ['db', 'DB', 'database', 'cloud'], ['web > api'], ['web > cdn'], ['cdn > db']] };
+  assertRenderedNoThrough(s, render(s));
 });
