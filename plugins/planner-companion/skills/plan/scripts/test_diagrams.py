@@ -86,6 +86,10 @@ class DiagramTests(CliTestCase):
         for f in (PLUGIN_DIR.parent / "diagrams" / "lib").glob("*.mjs"):
             self.assertEqual((lib / f.name).read_bytes(), f.read_bytes(), f.name)
 
+    def test_no_symlink_in_the_plugin(self):
+        links = [str(p) for p in PLUGIN_DIR.rglob("*") if p.is_symlink()]
+        self.assertEqual(links, [])
+
     def test_new_kinds_validate_and_render(self):
         for kind, rows in NEW_KINDS.items():
             spec = {"id": "d-" + kind, "type": kind, "title": kind, "rows": rows}

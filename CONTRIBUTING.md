@@ -21,10 +21,11 @@ Path rules that keep a plugin portable:
 - Inside an agent or a `hooks/hooks.json`, refer to plugin files as `${CLAUDE_PLUGIN_ROOT}/...`.
 - Never reach into the project's `.claude/` for code. Only the project's data lives there.
 - Hook scripts find the project through `$CLAUDE_PROJECT_DIR` and fail open.
-- To share code between plugins, link it with a relative symlink that stays inside this repo.
-  Installing a plugin copies the link's target in its place, so each installed plugin is
-  self-contained. `planner-companion` gets the renderer this way: `skills/plan/scripts/lib/diagram`
-  links to `plugins/diagrams/lib`, and `reference/diagram-rows.md` links to that plugin's row reference.
+- To share code between plugins, copy it with a generator, not a link: installing a plugin copies
+  only its own directory, so a symlink that points outside it breaks. `planner-companion` gets the
+  renderer this way: `skills/plan/scripts/lib/diagram` and `reference/diagram-rows.md` are generated
+  copies of `plugins/diagrams/lib` and that plugin's `rows.md`. After editing either source, run
+  `node tools/sync-diagram.mjs`, and verify with `node tools/sync-diagram.mjs --check`, which exits 1 on drift.
 
 `scenario-matrix`'s `no-project-names` test keeps project-specific names out of the plugin,
 and `knowledge`'s `scripts/test_skill_refs.py` and `token-hygiene`'s `hooks/test_hooks_json.py`

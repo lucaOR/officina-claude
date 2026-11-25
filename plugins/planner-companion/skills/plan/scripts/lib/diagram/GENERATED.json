@@ -1,5 +1,5 @@
 {
-  "generated": "by tools/sync-diagram.mjs from plugins/diagrams/lib; do not edit",
+  "generated": "by tools/sync-diagram.mjs from plugins/diagrams/lib; do not edit; verify with node tools/sync-diagram.mjs --check",
   "sha256": "9e57b07296fd5dd8fd43e9128dbbf432212a675b9cdcc4c9b11553cb71c95a59",
   "files": {
     "architecture.mjs": "da6c2efa89493c8a5b0a24ce64f95415ebc41622bf834c3fb038caf9be525343",

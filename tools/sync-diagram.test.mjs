@@ -1,14 +1,16 @@
-import test from 'node:test';
+import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { sync, check, SOURCE, TARGET, MANIFEST } from './sync-diagram.mjs';
+import { sync, check, syncDoc, checkDoc, SOURCE, TARGET, DOC_SOURCE, MANIFEST } from './sync-diagram.mjs';
 
 const TOOL = fileURLToPath(new URL('./sync-diagram.mjs', import.meta.url));
-const temp = () => path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'sync-diagram-')), 'copy');
+const roots = [];
+const temp = () => { const r = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-diagram-')); roots.push(r); return path.join(r, 'copy'); };
+after(() => roots.forEach(r => fs.rmSync(r, { recursive: true, force: true })));
 
 test('a fresh sync checks clean and holds every source file plus a manifest', () => {
   const t = temp();
@@ -63,4 +65,64 @@ test('the CLI --check passes on the committed copy, from any cwd', () => {
   const r = spawnSync(process.execPath, [TOOL, '--check'], { cwd: os.tmpdir(), encoding: 'utf8' });
   assert.equal(r.status, 0, r.stdout + r.stderr);
   assert.deepEqual(check(SOURCE, TARGET), []);
+});
+
+test('a missing or empty source throws and leaves the target alone', () => {
+  const t = temp();
+  sync(SOURCE, t);
+  const before = fs.readFileSync(path.join(t, 'index.mjs'));
+  const empty = temp();
+  fs.mkdirSync(empty);
+  assert.throws(() => sync(path.join(empty, 'nope'), t), /not found/);
+  assert.throws(() => sync(empty, t), /no \.mjs files/);
+  assert.throws(() => check(path.join(empty, 'nope'), t), /not found/);
+  assert.deepEqual(fs.readFileSync(path.join(t, 'index.mjs')), before);
+  assert.deepEqual(check(SOURCE, t), []);
+});
+
+test('the CLI exits 2 on a missing source and keeps the target', () => {
+  const t = temp();
+  sync(SOURCE, t);
+  const r = spawnSync(process.execPath, [TOOL, `--source=${t}-nope`, `--target=${t}`], { encoding: 'utf8' });
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /not found/);
+  assert.deepEqual(check(SOURCE, t), []);
+});
+
+test('sync refuses to replace a non-empty directory that is not a generated copy', () => {
+  const t = temp();
+  fs.mkdirSync(t);
+  fs.writeFileSync(path.join(t, 'precious.txt'), 'keep');
+  assert.throws(() => sync(SOURCE, t), /refusing/);
+  assert.equal(fs.readFileSync(path.join(t, 'precious.txt'), 'utf8'), 'keep');
+});
+
+test('sync leaves no temp sibling behind', () => {
+  const t = temp();
+  sync(SOURCE, t);
+  assert.deepEqual(fs.readdirSync(path.dirname(t)), ['copy']);
+});
+
+test('the rows reference syncs byte for byte and drift is detected', () => {
+  const doc = `${temp()}-rows.md`;
+  syncDoc(DOC_SOURCE, doc);
+  assert.deepEqual(checkDoc(DOC_SOURCE, doc), []);
+  assert.deepEqual(fs.readFileSync(doc), fs.readFileSync(DOC_SOURCE));
+  fs.appendFileSync(doc, 'x');
+  assert.match(checkDoc(DOC_SOURCE, doc)[0], /differs/);
+  fs.rmSync(doc);
+  assert.match(checkDoc(DOC_SOURCE, doc)[0], /missing/);
+  fs.symlinkSync(DOC_SOURCE, doc);
+  assert.match(checkDoc(DOC_SOURCE, doc)[0], /symlink/);
+});
+
+test('the CLI --check reports a drifted rows reference and exits 1', () => {
+  const t = temp();
+  const doc = `${t}-rows.md`;
+  syncDoc(DOC_SOURCE, doc);
+  fs.appendFileSync(doc, 'x');
+  sync(SOURCE, t);
+  const r = spawnSync(process.execPath, [TOOL, '--check', `--target=${t}`, `--rows-target=${doc}`], { encoding: 'utf8' });
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /-rows\.md: differs/);
 });
