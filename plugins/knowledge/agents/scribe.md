@@ -34,6 +34,7 @@ the full unconsumed row list as `rows` and `0` as `ledger_hits` when you have no
 - A row with a score of at least 0.35 (`LISTED_MIN`) goes into the one plan under the heading
   "Auto-captured candidates", with its quote and its score shown.
 - A row below 0.35 is held: it stays in the queue unconsumed and the plan only counts it
-  ("N held below 0.35").
+  ("N held below 0.35"); held rows are only counted and are never dropped or turned into
+  anything without being presented.
 - Never turn a `source=auto` row into a rule, a memory note or a drop without presenting it in
   that one plan and getting the user's approval.

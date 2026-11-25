@@ -33,9 +33,14 @@ facts, not a proposed YAML entry — routing and wording are the scribe's job, n
 
 ## `/knowledge:kb learn` — capture this session's learnings (any session)
 
-Runs the capture extractor on the current session by hand, whatever `scribe.capture` says. Call
-`python3 ${CLAUDE_PLUGIN_ROOT}/scripts/capture/run_capture.py --session <id> --transcript <path> --root {root}`
-with the current session id, its transcript path and the project root. It always exits 0 and
+Runs the capture extractor on the current session by hand, whatever `scribe.capture` says. In
+this file `{root}` is the project root. Call
+`python3 "${CLAUDE_SKILL_DIR}/../../scripts/capture/run_capture.py" --root {root}`.
+Without `--session` and `--transcript` it picks the newest transcript `.jsonl` in
+`~/.claude/projects/<slug>/` (the slug is the project root with every non-alphanumeric
+character replaced by `-`) and takes the session id from the file's name; that file is the
+current session because it is the one written last. Pass `--session <id> --transcript <path>`
+to capture another session. It always exits 0 and
 queues the extracted rows with `meta.source=auto`; failures go to `.claude/knowledge/.local/capture.log`.
 The scribe lists those rows under "Auto-captured candidates" in the next `/knowledge:kb run` plan
 (score at least 0.35 shown with quote and score, the rest counted as held) and writes nothing

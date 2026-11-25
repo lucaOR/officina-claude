@@ -2,6 +2,7 @@ import importlib.util
 import io
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -160,6 +161,32 @@ class RunCaptureTest(CaptureSessionEndTest):
         with mock.patch.object(run_capture, "prepare_input") as prep:
             rc = run_capture.main(["--session", "../../x", "--transcript", "/nope",
                                    "--root", str(self.root)])
+        self.assertEqual(rc, 0)
+        prep.assert_not_called()
+
+    def test_defaults_to_newest_transcript_of_project(self):
+        home = self.base / "home"
+        slug = re.sub(r"[^A-Za-z0-9]", "-", str(self.root))
+        pdir = home / ".claude" / "projects" / slug
+        pdir.mkdir(parents=True)
+        old, new = pdir / "old-1.jsonl", pdir / "new_2.jsonl"
+        old.write_text("{}")
+        new.write_text("{}")
+        os.utime(old, (1, 1))
+        with mock.patch.dict(os.environ, {"HOME": str(home)}), \
+                mock.patch.object(run_capture, "prepare_input", return_value=({}, "")) as prep:
+            rc = run_capture.main(["--root", str(self.root)])
+        self.assertEqual(rc, 0)
+        self.assertEqual(str(prep.call_args.args[0]), str(new))
+        self.assertTrue(str(prep.call_args.args[1]).endswith("handoff/new_2.md")
+                        or prep.call_args.args[1] is None)
+
+    def test_defaults_without_any_transcript_is_quiet_noop(self):
+        home = self.base / "home2"
+        home.mkdir()
+        with mock.patch.dict(os.environ, {"HOME": str(home)}), \
+                mock.patch.object(run_capture, "prepare_input") as prep:
+            rc = run_capture.main(["--root", str(self.root)])
         self.assertEqual(rc, 0)
         prep.assert_not_called()
 

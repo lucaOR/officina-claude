@@ -33,16 +33,33 @@ def _log(root, text):
         pass
 
 
+def _newest_transcript(root):
+    """Newest session .jsonl of the project, as Claude Code files it (slug = root with
+    every non-alphanumeric character replaced by '-'). Returns None when there is none."""
+    slug = re.sub(r"[^A-Za-z0-9]", "-", str(Path(root).resolve()))
+    files = list((Path.home() / ".claude" / "projects" / slug).glob("*.jsonl"))
+    return max(files, key=lambda f: f.stat().st_mtime) if files else None
+
+
 def main(argv):
     root = None
     try:
         ap = argparse.ArgumentParser()
-        ap.add_argument("--session", required=True)
-        ap.add_argument("--transcript", required=True)
+        ap.add_argument("--session")
+        ap.add_argument("--transcript")
         ap.add_argument("--root", required=True)
         ap.add_argument("--mode", default="auto")
         args = ap.parse_args(argv)
         root = args.root
+        if not args.transcript:
+            newest = _newest_transcript(root)
+            if newest is None:
+                _log(root, "no transcript found for this project")
+                return 0
+            args.transcript = str(newest)
+            args.session = args.session or newest.stem
+        if not args.session:
+            return 0
         if not re.fullmatch(r"[A-Za-z0-9_-]+", args.session):
             return 0
         from kb import kb_queue
