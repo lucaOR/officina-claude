@@ -56,6 +56,7 @@ const RULES = [
   ['.dg-card', 'fill:none;stroke:var(--dg-line);stroke-width:1.5'],
   ['.dg-initial, .dg-final-dot', 'fill:var(--dg-line)'],
   ['.dg-final-ring', 'fill:none;stroke:var(--dg-line);stroke-width:1.5'],
+  ['.dg-tree-edge', 'fill:none;stroke:var(--dg-line);stroke-width:1.5'],
 ];
 
 // Editorial: every node is a panel with a hairline, no tint; the focus node alone takes colour.
@@ -63,7 +64,7 @@ const EDITORIAL = [
   ['.dg-node .dg-shape', 'fill:var(--dg-panel);stroke:var(--dg-line);stroke-width:1'],
   ['.dg-node.t-focus .dg-shape', 'fill:var(--dg-focus);stroke:var(--dg-focus)'],
   ['.dg-node.t-focus text', 'fill:var(--dg-panel)'],
-  ['.dg-edge, .dg-msg, .dg-rel', 'stroke-width:1'],
+  ['.dg-edge, .dg-msg, .dg-rel, .dg-tree-edge', 'stroke-width:1'],
   ['.dg-node-label', 'font-weight:500'],
 ];
 

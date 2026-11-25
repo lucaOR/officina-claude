@@ -11,7 +11,7 @@ test('rows must be arrays of strings', () => {
 });
 
 test('an unknown diagram type is rejected', () => {
-  fails('tree', [['a', 'A']], /type must be one of sequence, workflow, erd/);
+  fails('gantt', [['a', 'A']], /type must be one of sequence, workflow, erd/);
 });
 
 // ---- sequence ----

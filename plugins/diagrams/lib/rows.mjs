@@ -1,7 +1,7 @@
 // Compact rows to a diagram model. A row is a list of string cells; the grammar is in
 // skills/diagram/reference/rows.md. Every error names the 1-based row it comes from.
 
-export const TYPES = ['sequence', 'workflow', 'erd', 'state'];
+export const TYPES = ['sequence', 'workflow', 'erd', 'state', 'tree'];
 export const NODE_TYPES = ['frontend', 'backend', 'database', 'cloud', 'security', 'messagebus', 'external', 'focus'];
 export const VARIANTS = ['default', 'emphasis', 'security', 'dashed'];
 const KEYS = ['pk', 'fk', 'uk'];
@@ -39,7 +39,7 @@ function normalise(rows) {
 export function parseRows(type, rows) {
   if (!TYPES.includes(type)) fail(null, `type must be one of ${TYPES.join(', ')}, got "${type}"`);
   const list = normalise(rows);
-  return { sequence, workflow, erd, state }[type](list);
+  return { sequence, workflow, erd, state, tree }[type](list);
 }
 
 // ---- sequence --------------------------------------------------------------------------------
@@ -241,4 +241,36 @@ function state(rows) {
     transitions.push({ from, to, label: row[1] || '', variant: oneOf(row[2], VARIANTS, 'variant', i, 'default') });
   });
   return { states, markers, transitions, order };
+}
+
+// ---- tree ------------------------------------------------------------------------------------
+
+function tree(rows) {
+  const nodes = [];
+  const ids = new Set();
+  rows.forEach((row, i) => {
+    if (row[0].includes('>')) return;
+    cellCount(row, i, 'node', 2, 3);
+    const id = checkId(row[0], i);
+    if (ids.has(id)) fail(i, `node "${id}" is declared twice`);
+    ids.add(id);
+    nodes.push({ id, label: needLabel(row[1], i, 'a node'), type: oneOf(row[2], NODE_TYPES, 'type', i, 'backend') });
+  });
+  if (!nodes.length) fail(null, 'a tree needs at least one node');
+
+  const parent = new Map();
+  const edges = [];
+  rows.forEach((row, i) => {
+    if (!row[0].includes('>')) return;
+    cellCount(row, i, 'edge', 1, 1);
+    const [from, to] = parseEdge(row, i);
+    for (const end of [from, to]) if (!ids.has(end)) fail(i, `unknown node "${end}"`);
+    if (parent.has(to)) fail(i, `${to} already has a parent (${parent.get(to)})`);
+    for (let up = from; up !== undefined; up = parent.get(up)) {
+      if (up === to) fail(i, `edge "${row[0]}" makes a cycle`);
+    }
+    parent.set(to, from);
+    edges.push({ from, to });
+  });
+  return { nodes, edges };
 }
