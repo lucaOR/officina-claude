@@ -124,6 +124,13 @@ class WatchdogTest(unittest.TestCase):
         self.assertIsNone(self.tool_call(CONTEXT_WARN=0))
         self.assertIsNone(self.stop(CONTEXT_WARN=0))
 
+    def test_knowledge_extractor_run_is_never_interrupted(self):
+        self.at(DEFAULT_THRESHOLD)
+        self.assertIsNone(self.tool_call(KNOWLEDGE_EXTRACT=1))
+        self.assertIsNone(self.stop(KNOWLEDGE_EXTRACT=1))
+        # The skipped runs must not spend the latch: the next ordinary call still fires.
+        self.assertEqual(decision(self.tool_call()), "deny")
+
     def test_wild_mode_turns_the_deny_into_a_message_and_spends_the_latch(self):
         self.at(DEFAULT_THRESHOLD)
         out = self.tool_call(CONTEXT_WATCHDOG_MODE="Wild")

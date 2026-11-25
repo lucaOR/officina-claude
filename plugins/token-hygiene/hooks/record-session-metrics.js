@@ -20,6 +20,9 @@ const fs = require('fs'), path = require('path'), readline = require('readline')
 // sets it there and the one project whose metrics are wanted sets METRICS_DISABLE=0 in its own
 // settings, which keeps the guards running everywhere without mixing projects into one dataset.
 if (process.env.METRICS_DISABLE === '1') process.exit(0);
+// A headless knowledge-extractor run (KNOWLEDGE_EXTRACT=1) is tooling, not the user's work, so it
+// leaves no row. Without the knowledge plugin the variable is never set and nothing changes.
+if (process.env.KNOWLEDGE_EXTRACT === '1') process.exit(0);
 
 const HOME = process.env.HOME;
 // Project transcript dir = ~/.claude/projects/<slug>, where <slug> is the project root path with

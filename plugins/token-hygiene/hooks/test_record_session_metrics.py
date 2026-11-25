@@ -162,7 +162,7 @@ class HookCase(unittest.TestCase):
         )
         # METRICS_DISABLE is stripped because a user-scope settings env reaches this shell too.
         env = dict(
-            {k: v for k, v in os.environ.items() if k != "METRICS_DISABLE"},
+            {k: v for k, v in os.environ.items() if k not in ("METRICS_DISABLE", "KNOWLEDGE_EXTRACT")},
             HOME=str(self.tmp / "home"),
             CLAUDE_PROJECT_DIR=str(proj_root),
             **(env_extra or {}),
@@ -186,6 +186,11 @@ class TestSwitch(HookCase):
     def test_metrics_disable_writes_no_ledger(self):
         self.run_hook("33333333-0000-0000-0000-000000000000", self.SESSION,
                       {"METRICS_DISABLE": "1"})
+        self.assertFalse((self.metrics / f"sessions{GEN}.csv").exists())
+
+    def test_knowledge_extractor_run_writes_no_ledger(self):
+        self.run_hook("33333333-0000-0000-0000-000000000000", self.SESSION,
+                      {"KNOWLEDGE_EXTRACT": "1"})
         self.assertFalse((self.metrics / f"sessions{GEN}.csv").exists())
 
     def test_metrics_disable_zero_still_records(self):

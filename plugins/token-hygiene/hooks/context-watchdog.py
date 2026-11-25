@@ -192,6 +192,8 @@ def main() -> None:
     try:
         if os.environ.get("CONTEXT_WARN") == "0":
             return
+        if os.environ.get("KNOWLEDGE_EXTRACT") == "1":
+            return                                 # a headless knowledge extractor run
         data = json.load(sys.stdin)
         event = data.get("hook_event_name")
         if event == "PreToolUse":
