@@ -26,8 +26,10 @@ const flag = name => { const at = args.indexOf(name); return at >= 0 ? { at, val
 const styleFlag = flag('--style');
 const paletteFlag = flag('--palette');
 const taken = new Set([outAt, styleFlag?.at, paletteFlag?.at].filter(n => n >= 0).map(n => n + 1));
+const KNOWN = new Set(['--out', '--style', '--palette', '--help', '-h']);
+const unknown = args.some((a, i) => a.startsWith('-') && !KNOWN.has(a) && !taken.has(i));
 const file = args.find((a, i) => !a.startsWith('--') && !taken.has(i));
-if (!file || (outAt >= 0 && !out) || (styleFlag && !styleFlag.value) || (paletteFlag && !paletteFlag.value)) {
+if (unknown || !file || (outAt >= 0 && !out) || (styleFlag && !styleFlag.value) || (paletteFlag && !paletteFlag.value)) {
   process.stderr.write(USAGE);
   process.exit(2);
 }
@@ -47,7 +49,7 @@ const options = { palette, style: styleFlag?.value };
 const target = out || file.replace(/(\.json)?$/, '.html');
 const title = esc(spec?.title || spec?.type || 'Diagram');
 try {
-  if (target.endsWith('.svg')) {
+  if (/\.svg$/i.test(target)) {
     const { svg, nodes } = renderStandalone(spec, options);
     fs.writeFileSync(target, svg);
     done({ ok: true, out: target, nodes }, 0);

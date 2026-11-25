@@ -108,3 +108,21 @@ test('an unreadable palette file fails with a message', () => {
   assert.equal(r.status, 1);
   assert.match(JSON.parse(r.stdout).error, /cannot read palette/);
 });
+
+test('an unknown flag is rejected with usage and exit code 2', () => {
+  for (const flag of ['--styel', '-o']) {
+    const file = spec(WF);
+    const r = run(file, flag, 'editorial');
+    assert.equal(r.status, 2, flag);
+    assert.match(r.stderr, /usage:/);
+    assert.ok(!existsSync(file.replace(/\.json$/, '.html')), 'nothing is written');
+  }
+});
+
+test('the output extension is matched without regard to case', () => {
+  const file = spec(WF);
+  const out = file.replace(/\.json$/, '.SVG');
+  const r = run(file, '--out', out);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(readFileSync(out, 'utf8'), /^<svg /);
+});
