@@ -1,7 +1,7 @@
 {
   "name": "planner-companion",
-  "version": "0.2.0",
-  "description": "Co-design a plan with Claude on a live local web page: decisions, diagrams and tasks, with sequence, workflow and ERD diagrams drawn offline.",
+  "version": "0.2.1",
+  "description": "Co-design a plan with Claude on a live local web page: decisions, diagrams and tasks, with sequence, workflow, ER, state, tree, timeline and architecture diagrams drawn offline.",
   "author": {
     "name": "Luca Oronzo"
   }
