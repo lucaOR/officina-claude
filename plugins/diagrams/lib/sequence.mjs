@@ -94,6 +94,7 @@ export function sequence(model, { p }) {
     width, height,
     body: bandSvg + lifeSvg + actorSvg + msgSvg + tabSvg,
     nodes: [...actors.map(a => a.id), ...messages.map(m => m.id)],
+    boxes: actors.map((a, i) => ({ id: a.id, x: cx[i] - a.w / 2, y: MARGIN, w: a.w, h: BOX_H })),
     desc: `Sequence of ${messages.length} messages between ${actors.length} actors.`,
   };
 }

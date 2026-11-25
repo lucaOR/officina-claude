@@ -65,6 +65,7 @@ export function workflow(model, { p }) {
     width, height: out.height,
     body: laneSvg + edgeSvg + labelSvg + nodeSvg,
     nodes: model.nodes.map(n => n.id),
+    boxes: model.nodes.map(n => { const { x, y, w, h } = out.nodes[n.id]; return { id: n.id, x, y, w, h }; }),
     desc: `Workflow of ${model.nodes.length} steps${model.lanes.length ? ` in ${model.lanes.length} lanes` : ''}.`,
   };
 }

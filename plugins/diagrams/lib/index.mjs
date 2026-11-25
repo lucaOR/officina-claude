@@ -15,11 +15,11 @@ const DRAW = { sequence, workflow, erd };
  * Renders `spec`. Every id in the SVG starts with `prefix`, so several diagrams can share a
  * page, and the stylesheet applies inside elements matching `scope`. Throws an Error naming
  * the bad row when the rows do not parse.
- * @returns {{svg: string, css: string, nodes: string[]}}
+ * @returns {{svg: string, css: string, nodes: string[], boxes: {id: string, x: number, y: number, w: number, h: number, parent?: string}[], width: number, height: number}}
  */
 export function render(spec, { prefix = 'dg-', scope = '.dg-host' } = {}) {
   const model = parseRows(spec?.type, spec?.rows);
   const drawn = DRAW[spec.type](model, { p: prefix });
   const svg = root({ p: prefix, type: spec.type, title: spec.title || spec.type, desc: drawn.desc, width: drawn.width, height: drawn.height, body: drawn.body });
-  return { svg, css: stylesheet(scope), nodes: drawn.nodes };
+  return { svg, css: stylesheet(scope), nodes: drawn.nodes, boxes: drawn.boxes, width: drawn.width, height: drawn.height };
 }

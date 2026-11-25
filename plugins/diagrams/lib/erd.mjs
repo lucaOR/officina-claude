@@ -101,6 +101,7 @@ export function erd(model) {
     width: out.width, height: out.height,
     body: relSvg + labelSvg + entitySvg,
     nodes: model.entities.map(e => e.id),
+    boxes: model.entities.map(e => { const { x, y, w, h } = out.nodes[e.id]; return { id: e.id, x, y, w, h }; }),
     desc: `Entity-relationship diagram of ${model.entities.length} entities and ${model.rels.length} relationships.`,
   };
 }
