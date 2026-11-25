@@ -54,56 +54,6 @@ node plugins/diagrams/bin/diagram.mjs release.json --out release.svg # a standal
 
 The CLI prints one line of JSON, `{"ok":true,"out":"release.html","nodes":[...]}`. A bad row fails with a message that starts with `Row <n>:`, which names the row to fix. The row format of every kind is in [`skills/diagram/reference/rows.md`](skills/diagram/reference/rows.md).
 
-## Gallery
-
-Each picture below is rendered from the spec next to it, and the SVG files adapt to a light or dark system theme. This block is generated: run `node scripts/gallery.mjs` after changing the reference, and `node scripts/gallery.mjs --check` fails when a file is out of date.
-
-<!-- gallery -->
-
-#### sequence
-
-![Question to stored answer](examples/sequence.svg)
-
-Spec: [`examples/sequence.json`](examples/sequence.json)
-
-#### workflow
-
-![Release](examples/workflow.svg)
-
-Spec: [`examples/workflow.json`](examples/workflow.json)
-
-#### erd
-
-![Questions and answers](examples/erd.svg)
-
-Spec: [`examples/erd.json`](examples/erd.json)
-
-#### state
-
-![Order](examples/state.svg)
-
-Spec: [`examples/state.json`](examples/state.json)
-
-#### tree
-
-![Plugin layout](examples/tree.svg)
-
-Spec: [`examples/tree.json`](examples/tree.json)
-
-#### timeline
-
-![Project history](examples/timeline.svg)
-
-Spec: [`examples/timeline.json`](examples/timeline.json)
-
-#### architecture
-
-![Web app](examples/architecture.svg)
-
-Spec: [`examples/architecture.json`](examples/architecture.json)
-
-<!-- /gallery -->
-
 ## Style and palette
 
 `--style editorial` draws the editorial look, and `--style default` is the standard one. The spec can carry the same choice as `"style": "editorial"`, and the flag wins.
@@ -119,7 +69,7 @@ node plugins/diagrams/bin/diagram.mjs release.json --style editorial --palette c
 ## Promises
 
 - Zero dependencies. The plugin imports only its own files and Node's built-in modules, and it needs no browser at render time.
-- Deterministic. The same spec, style and palette give byte-identical output, which is why the gallery can be checked against a fresh render.
+- Deterministic. The same spec, style and palette give byte-identical output.
 
 ## Limits
 

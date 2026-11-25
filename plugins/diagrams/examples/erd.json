@@ -1,9 +1,0 @@
-{"type": "erd", "title": "Questions and answers", "rows": [
-  ["entity question", "Question"],
-  ["entity answer", "Answer"],
-  ["question.id", "bigint", "pk"],
-  ["question.text", "text"],
-  ["answer.id", "bigint", "pk"],
-  ["answer.question_id", "bigint", "fk", "question.id"],
-  ["answer > question", "many:one", "answers"]
-]}

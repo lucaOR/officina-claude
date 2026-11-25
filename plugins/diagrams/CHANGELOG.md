@@ -12,9 +12,8 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 - A palette file for `--palette`, which recolours node types and theme parts, in a light and a dark value.
 - The `focus` node type, which highlights the one node the reader should look at.
 - A geometry test helper that fails a diagram with overlapping or out-of-bounds boxes.
-- A gallery: `scripts/gallery.mjs` renders `examples/<kind>.json` and `examples/<kind>.svg` from the reference, fills the README gallery block, and `--check` fails when a file is out of date.
-- A shared standalone-SVG helper, `lib/standalone.mjs`, used by the CLI and the gallery.
-- A README with install, quickstart, gallery, style and palette options, promises and limits.
+- A shared standalone-SVG helper, `lib/standalone.mjs`, used by the CLI.
+- A README with install, quickstart, style and palette options, promises and limits.
 
 ### Changed
 

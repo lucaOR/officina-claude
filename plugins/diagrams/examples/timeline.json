@@ -1,8 +1,0 @@
-{"type": "timeline", "title": "Project history", "rows": [
-  ["track plan", "Planning"],
-  ["track build", "Building"],
-  ["2025-01", "Kickoff", "plan"],
-  ["2025-03-15", "Design signed off", "plan", "focus"],
-  ["2025-04", "First prototype", "build", "frontend"],
-  ["2025-06-30", "Release", "build", "cloud"]
-]}

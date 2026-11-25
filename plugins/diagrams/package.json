@@ -16,7 +16,6 @@
     "bin",
     "lib",
     "skills",
-    "examples",
     "README.md",
     "CHANGELOG.md",
     "!**/test_*.py",

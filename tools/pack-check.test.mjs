@@ -84,7 +84,7 @@ test('scenario-matrix stays private so it cannot be published by accident', () =
 
 test('the diagrams tarball carries what the command and the README need', () => {
   const files = pack(path.join(REPO, 'plugins/diagrams'));
-  for (const f of ['bin/diagram.mjs', 'lib/index.mjs', 'README.md', 'CHANGELOG.md', 'examples/sequence.svg']) assert.ok(files.includes(f), f);
+  for (const f of ['bin/diagram.mjs', 'lib/index.mjs', 'README.md', 'CHANGELOG.md']) assert.ok(files.includes(f), f);
   assert.ok(!files.some(f => /^(test|scripts)\//.test(f)));
 });
 
