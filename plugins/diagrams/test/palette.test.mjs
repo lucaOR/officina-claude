@@ -18,12 +18,12 @@ test('a palette value that could break out of the rule is rejected', () => {
   assert.throws(() => loadPalette({ ink: 'red;}body{x' }), /palette ink: invalid colour/);
 });
 test('injection attempts are rejected, whatever the colour function', () => {
-  for (const bad of ['rgb(0;}x{)', 'rgb(0,0,0);}', 'url(x)', 'var(--x)', 'expression(1)', 'red', '#12', '#ggg', '#12345', '"#fff"', "#fff'", '#fff}', 'rgb(0,0)', 'hsl(1,2%,3%;)', '', 5, null, ['#fff'], ['#fff', 'red;']]) {
+  for (const bad of ['rgb(0;}x{)', 'rgb(0,0,0);}', 'url(x)', 'var(--x;}a{)', 'var(--x, red)', 'var(x)', 'var(--x )', 'var(var(--x))', 'expression(1)', 'red', '#12', '#ggg', '#12345', '"#fff"', "#fff'", '#fff}', 'rgb(0,0)', 'hsl(1,2%,3%;)', '', 5, null, ['#fff'], ['#fff', 'red;']]) {
     assert.throws(() => loadPalette({ ink: bad }), /palette ink: invalid colour/, JSON.stringify(bad));
   }
 });
 test('hex, rgb and hsl colours are accepted', () => {
-  const p = loadPalette({ ink: '#1a2b3c', muted: ['#abcd', '#aabbccdd'], panel: 'rgb(10, 20, 30)', line: 'hsl(210 40% 50%)', rule: 'rgba(0,0,0,.5)' });
+  const p = loadPalette({ ink: '#1a2b3c', muted: ['#abcd', '#aabbccdd'], panel: 'rgb(10, 20, 30)', line: 'hsl(210 40% 50%)', rule: 'rgba(0,0,0,.5)', dashed: 'rgb(0 0 0 / .5)', emphasis: 'var(--accent)' });
   assert.equal(p.ink[0], '#1a2b3c');
   assert.equal(p.panel[1], 'rgb(10, 20, 30)');
 });
@@ -43,7 +43,7 @@ test('render takes a palette and a style, and spec.style is used unless the opti
 test('editorial draws every node with a hairline and no tint', () => {
   const css = stylesheet('.dg-host', { style: 'editorial' });
   assert.match(css, /\.dg-host \.dg-node \.dg-shape\{fill:var\(--dg-panel\);stroke:var\(--dg-line\);stroke-width:1\}/);
-  assert.match(css, /\.t-focus/);
+  assert.match(css, /\.dg-host \.dg-node\.t-focus \.dg-shape\{fill:var\(--dg-focus\)/);
   assert.doesNotMatch(stylesheet('.dg-host'), /stroke:var\(--dg-line\);stroke-width:1\}/);
 });
 test('focus is a valid node type and renders', () => {

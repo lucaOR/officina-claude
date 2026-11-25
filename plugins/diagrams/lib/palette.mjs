@@ -1,5 +1,5 @@
 // Default colours and the palette validator. A palette value ends up inside a stylesheet rule,
-// so only hex and purely numeric rgb()/hsl() are accepted: no `;`, braces, quotes, url() or var().
+// so only hex, purely numeric rgb()/hsl() and a bare var(--name) are accepted: no `;`, braces, quotes, url(), or var() fallbacks.
 
 export const TYPES = {
   frontend: ['#0891b2', '#22d3ee'],
@@ -26,7 +26,8 @@ export const THEME = {
 const NUM = String.raw`-?(?:\d+\.?\d*|\.\d+)%?`;
 const HEX = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const FUNC = new RegExp(`^(?:rgb|hsl)a?\\(\\s*${NUM}(?:\\s*,\\s*${NUM}){2,3}\\s*\\)$|^(?:rgb|hsl)a?\\(\\s*${NUM}(?:\\s+${NUM}){2}(?:\\s*/\\s*${NUM})?\\s*\\)$`, 'i');
-const colour = v => typeof v === 'string' && (HEX.test(v) || FUNC.test(v));
+const VAR = /^var\(--[a-z0-9-]+\)$/i;
+const colour = v => typeof v === 'string' && (HEX.test(v) || FUNC.test(v) || VAR.test(v));
 
 /**
  * Validates a palette ({key: colour | [light, dark]}) and returns {key: [light, dark]}. Keys are
