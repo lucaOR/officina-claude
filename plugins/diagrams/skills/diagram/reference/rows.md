@@ -1,8 +1,8 @@
 # Diagram rows
 
-A diagram is `{"type", "title", "rows"}`. `type` is `sequence`, `workflow` or `erd`. Each row is a JSON array of strings, and the renderer places everything, so a row never holds coordinates.
+A diagram is `{"type", "title", "rows"}`. `type` is `sequence`, `workflow`, `erd`, `state`, `tree`, `timeline` or `architecture`. An optional `style` field, `default` or `editorial`, picks the look. Each row is a JSON array of strings, and the renderer places everything, so a row never holds coordinates.
 
-Ids start with a letter and continue with letters, digits, `-` or `_`. A node or actor type is one of `frontend`, `backend`, `database`, `cloud`, `security`, `messagebus` or `external`; it sets the colour and defaults to `backend`. An edge or message variant is one of `default`, `emphasis`, `security` or `dashed`, and a sequence message may also be `return`. An empty cell means "use the default".
+Ids start with a letter and continue with letters, digits, `-` or `_`. A node or actor type is one of `frontend`, `backend`, `database`, `cloud`, `security`, `messagebus`, `external` or `focus`; `focus` highlights the one node the reader should look at. The type sets the colour and defaults to `backend`. An edge or message variant is one of `default`, `emphasis`, `security` or `dashed`, and a sequence message may also be `return`. An empty cell means "use the default".
 
 When a row is wrong, rendering fails with a message that starts `Row <n>:` and names the problem.
 
@@ -73,4 +73,100 @@ When a field references the other entity, the relationship line joins the two fi
   ["answer.question_id", "bigint", "fk", "question.id"],
   ["answer > question", "many:one", "answers"]
 ]}
+```
+
+## state
+
+States and the transitions between them, left to right.
+
+- `[id, label, type?, group?]` declares a state. The optional `group` is an id of your choice; every state that shares it is drawn inside one flat frame. Groups do not nest here.
+- `["initial <id>"]` and `["final <id>"]` declare a start or end marker. A marker takes no other cell, nothing may enter an initial marker and nothing may leave a final one.
+- `["from > to", label?, variant?]` is a transition between states or markers. Loops are fine.
+
+```json
+{"type": "state", "title": "Order", "rows": [
+  ["initial start"],
+  ["final done"],
+  ["new", "New"],
+  ["paid", "Paid", "backend", "happy"],
+  ["shipped", "Shipped", "backend", "happy"],
+  ["cancelled", "Cancelled", "security"],
+  ["start > new"],
+  ["new > paid", "pay", "emphasis"],
+  ["paid > shipped", "ship"],
+  ["shipped > done"],
+  ["new > cancelled", "cancel", "dashed"],
+  ["cancelled > done"]
+]}
+```
+
+## tree
+
+A hierarchy, root at the top.
+
+- `[id, label, type?]` declares a node. Type `focus` highlights it.
+- `["parent > child"]` is an edge and takes no other cell. A node has one parent at most, and a cycle is rejected.
+
+```json
+{"type": "tree", "title": "Plugin layout", "rows": [
+  ["root", "diagrams"],
+  ["lib", "lib"],
+  ["bin", "bin"],
+  ["rows", "rows.mjs", "focus"],
+  ["cli", "diagram.mjs", "frontend"],
+  ["root > lib"],
+  ["root > bin"],
+  ["lib > rows"],
+  ["bin > cli"]
+]}
+```
+
+## timeline
+
+Dated events along an axis, optionally split into tracks.
+
+- `["track <id>", label]` declares a track, a row of events. Tracks are stacked in declared order.
+- `[when, label, track?, type?]` is an event. `when` is `YYYY`, `YYYY-MM` or `YYYY-MM-DD`. An event without a track cell goes to the first declared track. The renderer sorts events by date, so row order does not matter.
+
+```json
+{"type": "timeline", "title": "Project history", "rows": [
+  ["track plan", "Planning"],
+  ["track build", "Building"],
+  ["2025-01", "Kickoff", "plan"],
+  ["2025-03-15", "Design signed off", "plan", "focus"],
+  ["2025-04", "First prototype", "build", "frontend"],
+  ["2025-06-30", "Release", "build", "cloud"]
+]}
+```
+
+## architecture
+
+Components, the groups that contain them and the connections between them.
+
+- `["group <id>", label, parentGroup?]` declares a group. Groups nest, and a group may name a parent that is declared further down. A group is drawn as a dashed frame with its label inside the frame, at the top.
+- `[id, label, type?, group?]` declares a component. Without a `group` cell it sits outside every group.
+- `["from > to", label?, variant?]` is a connection between components. An edge that crosses groups ends on the inner component, not on a frame.
+
+```json
+{"type": "architecture", "title": "Web app", "rows": [
+  ["group cloud", "Cloud"],
+  ["group data", "Data tier", "cloud"],
+  ["web", "Web app", "frontend"],
+  ["api", "API", "backend", "cloud"],
+  ["db", "Database", "database", "data"],
+  ["queue", "Job queue", "messagebus", "data"],
+  ["web > api", "HTTPS", "emphasis"],
+  ["api > db", "SQL"],
+  ["api > queue", "enqueue", "dashed"]
+]}
+```
+
+## style and palette
+
+`node diagram.mjs spec.json --style editorial` draws the editorial look; `--style default` is the standard one. The same choice can sit in the spec as `"style": "editorial"`, and the flag wins over the spec field.
+
+`--palette colours.json` recolours a diagram. The file maps a name to a colour. A name is a node type (`frontend`, `backend`, `database`, `cloud`, `security`, `messagebus`, `external`, `focus`) or a theme part (`ink`, `muted`, `panel`, `line`, `lane`, `rule`, `emphasis`, `security`, `dashed`). A colour is `#hex`, a strict `rgb()` or `hsl()` with numbers only, or `var(--name)`. A single string applies to both colour schemes; a `[light, dark]` pair sets each. Anything else fails with `palette <key>: invalid colour`.
+
+```text
+{"database": ["#6d28d9", "#c4b5fd"], "focus": "#b91c1c", "ink": "var(--text)"}
 ```
