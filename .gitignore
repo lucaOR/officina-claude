@@ -4,3 +4,4 @@ node_modules/
 .project-terms
 .github/assets/social-preview.png
 /.claude/
+/docs/
