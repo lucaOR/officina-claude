@@ -70,6 +70,21 @@ class TestPrepareInput(unittest.TestCase):
         tail = text.split('TRANSCRIPT TAIL:\n', 1)[1]
         self.assertLessEqual(len(tail), 12000)
 
+    def test_missing_transcript_in_transcript_mode(self):
+        missing = Path(self.tmp.name) / "nope.jsonl"
+        self.assertEqual(prepare.prepare_input(missing, None, 'transcript'), ('transcript', ''))
+
+    def test_missing_transcript_in_handoff_mode_keeps_note(self):
+        missing = Path(self.tmp.name) / "nope.jsonl"
+        mode, text = prepare.prepare_input(missing, self.note, 'handoff')
+        self.assertEqual(mode, 'handoff')
+        self.assertIn('the handoff', text)
+
+    def test_handoff_mode_without_note_falls_back_to_transcript(self):
+        mode, text = prepare.prepare_input(self.transcript, None, 'handoff')
+        self.assertEqual(mode, 'transcript')
+        self.assertIn('USER: it is not like figma', text)
+
 
 if __name__ == "__main__":
     unittest.main()

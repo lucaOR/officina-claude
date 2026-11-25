@@ -24,7 +24,11 @@ def _filter(transcript_path):
             out.append("TOOLS: " + ", ".join(tools))
             tools.clear()
 
-    for raw in Path(transcript_path).read_text(errors="replace").splitlines():
+    try:
+        lines = Path(transcript_path).read_text(errors="replace").splitlines()
+    except OSError:
+        return ""
+    for raw in lines:
         try:
             obj = json.loads(raw)
         except ValueError:
