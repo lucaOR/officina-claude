@@ -1,7 +1,7 @@
 ---
 effort: medium
 name: kb
-description: Use for `/knowledge:kb <text>` — push an observation to the KB capture queue, from any session, no scribe required — and `/knowledge:kb run` — scribe-only, drains the queue, routes/writes KB YAML, commits (per `scribe.commit`). `/knowledge:kb run` refuses immediately unless the session is the scribe (`KNOWLEDGE_ROLE` or `CLAUDE_ROLE` is `scribe`), re-checked at the point of use, and refuses while another run holds the run lease. Launch a scribe session with `ccscribe` (`claude --agent knowledge:scribe -n kb-scribe`).
+description: Use for `/knowledge:kb <text>` — push an observation to the KB capture queue, from any session, no scribe required — and `/knowledge:kb learn` — runs the capture extractor on the current session by hand, and `/knowledge:kb run` — scribe-only, drains the queue, routes/writes KB YAML, commits (per `scribe.commit`). `/knowledge:kb run` refuses immediately unless the session is the scribe (`KNOWLEDGE_ROLE` or `CLAUDE_ROLE` is `scribe`), re-checked at the point of use, and refuses while another run holds the run lease. Launch a scribe session with `ccscribe` (`claude --agent knowledge:scribe -n kb-scribe`).
 ---
 
 # KB
@@ -28,7 +28,8 @@ is still a durable, human-readable capture list. The queue is per-machine state:
 `.local/`, which is git-ignored, and a linked worktree feeds the main checkout's queue.
 
 Queue line fields: `id`, `pusher`, `ts`, `head_sha` (at push time), `text`, `artifact_refs`
-(`path:line` / SHA / test-output path — cite what backs the observation), `consumed`. State
+(`path:line` / SHA / test-output path — cite what backs the observation), `consumed`, and an
+optional `meta` object (set by auto-capture: `source`, `session`, `theme`, `scope_guess`, `kind`, `quote`). State
 facts, not a proposed YAML entry — routing and wording are the scribe's job, not the pusher's.
 
 ## `/knowledge:kb learn` — capture this session's learnings (any session)
@@ -40,7 +41,8 @@ With `--session` and no `--transcript` it reads `~/.claude/projects/<slug>/<sess
 (the slug is the project root with every non-alphanumeric character replaced by `-`), so it
 captures exactly that session. Only when neither `--session` nor `--transcript` is given does it
 fall back to the newest transcript `.jsonl` in that directory. Pass
-`--session <id> --transcript <path>` to capture a transcript from elsewhere. It always exits 0 and
+`--session <id> --transcript <path>` to capture a transcript from elsewhere. The extractor call can take up to about 150 seconds, so
+run the command in the background or with a raised Bash timeout (for example 180000 ms). It always exits 0 and
 queues the extracted rows with `meta.source=auto`; failures go to `.claude/knowledge/.local/capture.log`.
 The scribe lists those rows under "Auto-captured candidates" in the next `/knowledge:kb run` plan
 (score at least 0.35 shown with quote and score, the rest counted as held) and writes nothing
