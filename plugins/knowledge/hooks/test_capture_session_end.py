@@ -64,6 +64,26 @@ class HookTest(CaptureSessionEndTest):
             self.run_hook(PAYLOAD)
         self.assertEqual(self.spawned(popen), [])
 
+    def test_scribe_agent_session_does_not_spawn(self):
+        self.write_config("auto")
+        for agent in ("knowledge:scribe", "scribe"):
+            with mock.patch("subprocess.Popen") as popen:
+                self.run_hook({**PAYLOAD, "agent_type": agent})
+            self.assertEqual(self.spawned(popen), [], agent)
+
+    def test_scribe_role_env_does_not_spawn(self):
+        self.write_config("auto")
+        with mock.patch.dict(os.environ, {"CLAUDE_ROLE": "scribe"}), \
+                mock.patch("subprocess.Popen") as popen:
+            self.run_hook(PAYLOAD)
+        self.assertEqual(self.spawned(popen), [])
+
+    def test_other_agent_type_still_spawns(self):
+        self.write_config("auto")
+        with mock.patch("subprocess.Popen") as popen:
+            self.run_hook({**PAYLOAD, "agent_type": "other"})
+        self.assertEqual(len(self.spawned(popen)), 1)
+
     def test_default_config_does_not_spawn(self):
         with mock.patch("subprocess.Popen") as popen:
             self.run_hook(PAYLOAD)

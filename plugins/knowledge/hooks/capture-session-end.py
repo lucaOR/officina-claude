@@ -19,6 +19,7 @@ from pathlib import Path  # noqa: E402
 
 HERE = Path(__file__).resolve()
 sys.path.insert(0, str(HERE.parents[1] / "scripts"))
+SCRIBE_AGENTS = {"knowledge:scribe", "scribe"}
 RUNNER = HERE.parents[1] / "scripts" / "capture" / "run_capture.py"
 
 
@@ -29,6 +30,9 @@ def main() -> None:
         payload = json.load(sys.stdin)
         if not isinstance(payload, dict):
             return
+        if (payload.get("agent_type") in SCRIBE_AGENTS
+                or os.environ.get("CLAUDE_ROLE") == "scribe"):
+            return  # the scribe's own session must not feed the queue it drains
         session, transcript = payload.get("session_id"), payload.get("transcript_path")
         if not isinstance(session, str) or not isinstance(transcript, str):
             return
