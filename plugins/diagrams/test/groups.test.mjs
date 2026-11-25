@@ -130,6 +130,66 @@ test('groups: lanes and groups work together', () => {
   const r = layout(g);
   assert.equal(r.lanes.length, 2);
   assert.ok(within(r.nodes.a, boxOf(r, 'g'), PAD));
+  assert.ok(within(boxOf(r, 'g'), r.lanes[0]), 'the group box lies inside its lane band');
+});
+
+test('groups: a group whose members sit in different lanes throws', () => {
+  const g = { lanes: ['x', 'y'], nodes: [{ ...n('a', 'g'), lane: 'x' }, { ...n('b', 'g'), lane: 'y' }], edges: [], groups: [{ id: 'g' }] };
+  assert.throws(() => layout(g), /group "g" spans lanes "x" and "y"/);
+  const missing = { lanes: ['x', 'y'], nodes: [{ ...n('a', 'g'), lane: 'x' }, n('b', 'g')], edges: [], groups: [{ id: 'g' }] };
+  assert.throws(() => layout(missing), /group "g" spans lanes "x" and "null"/);
+});
+
+// A segment crosses a box when it enters the box's interior.
+const crosses = (p, q, b) => Math.max(p.x, q.x) > b.x + 0.5 && Math.min(p.x, q.x) < b.x + b.w - 0.5
+  && Math.max(p.y, q.y) > b.y + 0.5 && Math.min(p.y, q.y) < b.y + b.h - 0.5;
+// Every edge must stay out of the node boxes it does not end at.
+const assertNoEdgeThroughNode = (g, r) => {
+  g.edges.forEach((ed, i) => {
+    const pts = r.edges[i].points;
+    for (const nd of g.nodes) {
+      if (nd.id === ed.from || nd.id === ed.to) continue;
+      for (let k = 1; k < pts.length; k++) assert.ok(!crosses(pts[k - 1], pts[k], r.nodes[nd.id]), `edge ${i} crosses node ${nd.id}`);
+    }
+  });
+};
+const chainG = (label = null) => ({ nodes: [n('a', 'g'), n('b', 'g'), n('c', 'g'), n('x')], edges: [e('a', 'b'), e('b', 'c'), { from: 'x', to: 'c', label }], groups: [{ id: 'g' }] });
+
+test('groups: an edge into a group does not run through a sibling of its target', () => {
+  const g = chainG();
+  const r = layout(g);
+  assertNoEdgeThroughNode(g, r);
+  const last = r.edges[2].points.at(-1);
+  const c = r.nodes.c;
+  assert.ok(last.x >= c.x - 0.01 && last.x <= c.x + c.w + 0.01 && last.y >= c.y - 0.01 && last.y <= c.y + c.h + 0.01, 'the edge still ends on c');
+  clean(g, r);
+});
+
+test('groups: the same holds in a top-to-bottom layout', () => {
+  const g = chainG();
+  assertNoEdgeThroughNode(g, layout(g, { dir: 'TB' }));
+});
+
+test('groups: no edge crosses a node in the flat and deep fixtures', () => {
+  assertNoEdgeThroughNode(flat, layout(flat));
+  const deepG = {
+    nodes: [n('a', 'l3'), n('b', 'l3'), n('c', 'l1'), n('x')],
+    edges: [e('a', 'b'), e('b', 'c'), e('x', 'a')],
+    groups: [{ id: 'l1' }, { id: 'l2', parent: 'l1' }, { id: 'l3', parent: 'l2' }],
+  };
+  assertNoEdgeThroughNode(deepG, layout(deepG));
+});
+
+test('groups: a labelled edge into a group keeps its label inside the canvas and clear of nodes', () => {
+  const g = chainG({ w: 40, h: 16 });
+  const r = layout(g);
+  const l = r.edges[2].label;
+  assert.ok(l && l.x >= 0 && l.y >= 0 && l.x + l.w <= r.width && l.y + l.h <= r.height, 'label inside the canvas');
+  for (const nd of g.nodes) {
+    const b = r.nodes[nd.id];
+    assert.ok(l.x + l.w <= b.x || l.x >= b.x + b.w || l.y + l.h <= b.y || l.y >= b.y + b.h, `label overlaps ${nd.id}`);
+  }
+  assertNoEdgeThroughNode(g, r);
 });
 
 test('groups: bad references throw a layout error', () => {

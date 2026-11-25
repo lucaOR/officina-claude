@@ -478,6 +478,66 @@ const tidyPoints = pts => {
  * An empty group takes the minimum content area (`groupMin`) plus padding and header.
  * A bad reference throws `layout: ...`.
  */
+// Routing the run between a group's border and an inner node around the other nodes in the group.
+// Boxes are {a0, a1, b0, b1}: a is the rank axis, b the order axis.
+const KEEP = 3; // clearance kept between an edge and a node it does not end at
+const toAB = (LR, r) => LR ? { a0: r.x, a1: r.x + r.w, b0: r.y, b1: r.y + r.h } : { a0: r.y, a1: r.y + r.h, b0: r.x, b1: r.x + r.w };
+const segBlocked = (boxes, p, q) => {
+  const [a0, a1, b0, b1] = [Math.min(p.a, q.a), Math.max(p.a, q.a), Math.min(p.b, q.b), Math.max(p.b, q.b)];
+  return boxes.some(r => a1 > r.a0 - KEEP && a0 < r.a1 + KEEP && b1 > r.b0 - KEEP && b0 < r.b1 + KEEP);
+};
+// The midpoints of the gaps between the merged spans [lo, hi] of the boxes, and the overall extent.
+function gapMids(boxes, lo, hi) {
+  const spans = boxes.map(r => [r[lo], r[hi]]).sort((x, y) => x[0] - y[0]);
+  const mids = [];
+  let end = spans[0]?.[1];
+  for (const [s, e] of spans) {
+    if (s > end) mids.push((end + s) / 2);
+    end = Math.max(end, e);
+  }
+  return { mids, min: spans[0]?.[0], max: end };
+}
+// From the border point (at rank `border`, order q) to the facing side of the target box T, or null.
+function innerRoute(boxes, T, border, q, lo, pad) {
+  const c = (T.b0 + T.b1) / 2;
+  const E = { a: lo ? T.a0 : T.a1, b: c };
+  const S = { a: border, b: q };
+  const free = pts => pts.slice(1).every((pt, i) => !segBlocked(boxes, pts[i], pt));
+  const len = pts => pts.slice(1).reduce((sum, pt, i) => sum + Math.abs(pt.a - pts[i].a) + Math.abs(pt.b - pts[i].b), 0);
+  if (Math.abs(q - c) <= 1) {
+    const straight = [S, { a: E.a, b: q }];
+    if (free(straight)) return straight;
+  }
+  if (!boxes.length) return null;
+  const { mids, min, max } = gapMids(boxes, 'a0', 'a1');
+  const corridors = [...mids, min - pad / 2, max + pad / 2].filter(x => lo ? x >= border && x < E.a : x <= border && x > E.a);
+  let best = null;
+  for (const x of corridors) {
+    const pts = [S, { a: x, b: q }, { a: x, b: c }, E];
+    if (free(pts) && (!best || len(pts) < len(best))) best = pts;
+  }
+  return best;
+}
+// Where an edge should cross the group border (at rank `border`) to reach the target node T from
+// the side `lo`: the order position with the shortest route clear of the other nodes. The node's
+// own centre wins unless another position is strictly better.
+function entryPort(others, T, border, lo, pad) {
+  const c = (T.b0 + T.b1) / 2;
+  const { mids } = gapMids(others, 'b0', 'b1');
+  const all = gapMids([...others, T], 'b0', 'b1');
+  const cost = q => {
+    const route = innerRoute(others, T, border, q, lo, pad);
+    return route ? route.slice(1).reduce((s, pt, i) => s + Math.abs(pt.a - route[i].a) + Math.abs(pt.b - route[i].b), 0) : 1e6;
+  };
+  let best = c;
+  let bestCost = cost(c);
+  for (const q of [...mids, all.min - pad / 2, all.max + pad / 2]) {
+    const k = cost(q);
+    if (k < bestCost) [best, bestCost] = [q, k];
+  }
+  return best;
+}
+
 export function layout(g, options = {}) {
   if (!g.groups?.length && !g.nodes.some(n => n.group != null)) return layoutFlat(g, options);
   const o = { ...DEFAULTS, ...options };
@@ -525,7 +585,11 @@ export function layout(g, options = {}) {
 
   const key = id => `\0group:${id}`;
   const shift = (r, dx, dy) => ({ ...r, x: r.x + dx, y: r.y + dy });
-  const laneOfGroup = id => g.nodes.find(n => n.lane != null && chain(n.id).includes(id))?.lane;
+  const laneOfGroup = id => {
+    const lanes = [...new Set(g.nodes.filter(n => chain(n.id).includes(id)).map(n => n.lane ?? null))];
+    if (g.lanes && lanes.length > 1) throw new Error(`layout: group "${id}" spans lanes "${lanes[0]}" and "${lanes[1]}"`);
+    return lanes[0] ?? undefined;
+  };
 
   // Everything a level returns is in the frame of its own box: pos holds its nodes, boxes its
   // inner groups, edges the edges routed at this level and below.
@@ -543,8 +607,9 @@ export function layout(g, options = {}) {
     const endOf = nodeId => {
       const c = chain(nodeId);
       if (c.length <= depth) return { item: nodeId };
-      const r = subs.get(c[depth]).pos.get(nodeId);
-      return { item: key(c[depth]), inner: r, port: LR ? r.y + r.h / 2 : r.x + r.w / 2 };
+      const sub = subs.get(c[depth]);
+      const r = sub.pos.get(nodeId);
+      return { item: key(c[depth]), inner: r, id: nodeId, sub, port: LR ? r.y + r.h / 2 : r.x + r.w / 2 };
     };
     const ends = mine.map(i => [endOf(g.edges[i].from), endOf(g.edges[i].to)]);
     const flatEdges = mine.map((i, k) => {
@@ -552,9 +617,26 @@ export function layout(g, options = {}) {
       const [a, b] = ends[k];
       return { from: a.item, to: b.item, label: e.label, fromPort: a.port ?? e.fromPort, toPort: b.port ?? e.toPort };
     });
-    const out = items.length
-      ? layoutFlat({ nodes: items, edges: flatEdges, lanes: root ? g.lanes : undefined }, root ? options : { ...options, margin: 0 })
+    const run = () => items.length
+      ? layoutFlat({ nodes: items, edges: mine.map((i, k) => ({ ...flatEdges[k], fromPort: ends[k][0].port ?? flatEdges[k].fromPort, toPort: ends[k][1].port ?? flatEdges[k].toPort })), lanes: root ? g.lanes : undefined }, root ? options : { ...options, margin: 0 })
       : { width: 0, height: 0, nodes: {}, edges: [], lanes: [] };
+    let out = run();
+    // Which side of its group an edge arrives at is only known now. Where the straight run from
+    // that side to the inner node would cross a sibling, move the crossing point and lay out again.
+    let moved = false;
+    mine.forEach((i, k) => {
+      const pts = out.edges[k].points;
+      [pts[0], pts.at(-1)].forEach((p, side) => {
+        const end = ends[k][side];
+        if (!end.inner) return;
+        const item = out.nodes[end.item];
+        const lo = LR ? p.x <= item.x + 0.01 : p.y <= item.y + 0.01;
+        const others = [...end.sub.pos].filter(([nid]) => nid !== end.id).map(([, b]) => toAB(LR, b));
+        const q = entryPort(others, toAB(LR, end.inner), lo ? 0 : LR ? end.sub.w : end.sub.h, lo, o.groupPad);
+        if (Math.abs(q - end.port) > 0.5) [end.port, moved] = [q, true];
+      });
+    });
+    if (moved) out = run();
 
     const pad = root ? 0 : o.groupPad;
     const [ox, oy] = root ? [0, 0] : [pad, o.groupHeader + pad];
@@ -579,14 +661,20 @@ export function layout(g, options = {}) {
     mine.forEach((i, k) => {
       const r = out.edges[k];
       const pts = r.points;
-      // Past the item's border, straight on to the side of the inner node that faces it.
-      const reach = (p, end) => {
+      // Past the item's border, on to the side of the inner node that faces it, around the other nodes.
+      const reach = (p, end, toEnd) => {
         if (!end.inner) return [];
         const item = out.nodes[end.item];
         const at = shift(end.inner, item.x, item.y);
-        return [LR ? { x: p.x <= item.x + 0.01 ? at.x : at.x + at.w, y: p.y } : { x: p.x, y: p.y <= item.y + 0.01 ? at.y : at.y + at.h }];
+        const lo = LR ? p.x <= item.x + 0.01 : p.y <= item.y + 0.01;
+        const old = [LR ? { x: lo ? at.x : at.x + at.w, y: p.y } : { x: p.x, y: lo ? at.y : at.y + at.h }];
+        const boxes = [...end.sub.pos].filter(([id]) => id !== end.id).map(([, b]) => toAB(LR, shift(b, item.x, item.y)));
+        const route = innerRoute(boxes, toAB(LR, at), LR ? p.x : p.y, LR ? p.y : p.x, lo, o.groupPad);
+        if (!route) return old;
+        const pts = route.slice(1).map(pt => LR ? { x: pt.a, y: pt.b } : { x: pt.b, y: pt.a });
+        return toEnd ? pts : pts.reverse();
       };
-      const full = tidyPoints([...reach(pts[0], ends[k][0]), ...pts, ...reach(pts.at(-1), ends[k][1])]);
+      const full = tidyPoints([...reach(pts[0], ends[k][0], false), ...pts, ...reach(pts.at(-1), ends[k][1], true)]);
       result.edges.push({ idx: i, points: full.map(p => shift(p, ox, oy)), label: r.label && shift(r.label, ox, oy), reversed: r.reversed });
     });
     return result;
