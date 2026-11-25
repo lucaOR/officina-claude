@@ -72,7 +72,7 @@ Plugin skills are namespaced by plugin: type `/session:handoff`, not
 | You can't tell which sessions or habits burn your token budget | [`token-hygiene`](#token-hygiene) |
 | Whole-file reads, re-reads and long test logs swell the context before compaction kicks in | [`token-hygiene`](#token-hygiene) |
 | A plan drifts from what you meant, and reviewing it in the terminal is slow | [`planner-companion`](#planner-companion) |
-| You want a sequence, workflow or ER diagram without Mermaid, a browser or network | [`diagrams`](#diagrams) |
+| You want a sequence, workflow, ER, state, tree, timeline or architecture diagram without Mermaid, a browser or network | [`diagrams`](#diagrams) |
 | Behaviour regressions in a web app or API slip through because nobody lists the scenarios | [`scenario-matrix`](#scenario-matrix) |
 | Claude forgets the project's conventions and repeats mistakes it was already corrected on | [`knowledge`](#knowledge) (`/knowledge:kb`) |
 
@@ -184,14 +184,14 @@ the page's "Create the real plan" button writes it out as a `plan.md`.
 
 ### `diagrams`
 
-`/diagrams:diagram` draws a sequence diagram, a workflow or an entity-relationship diagram from
-a few compact JSON rows. The renderer is plain Node with no dependencies, so it needs no
+`/diagrams:diagram` draws a sequence diagram, a workflow, an entity-relationship diagram, a state
+diagram, a tree, a timeline or an architecture diagram from a few compact JSON rows. The renderer is plain Node with no dependencies, so it needs no
 Mermaid, no browser and no network. It writes a standalone HTML page that follows the system's
 light or dark theme, or an SVG file that carries its own styles. `planner-companion` draws its
 plan diagrams with the same renderer.
 
 - `/diagrams:diagram`: describe the diagram you want. Claude also uses the skill on its own when
-  you ask for one of these three kinds of diagram.
+  you ask for one of these seven kinds of diagram.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/assets/checkout-sequence-dark.svg">
