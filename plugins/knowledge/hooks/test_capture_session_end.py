@@ -2,6 +2,7 @@ import importlib.util
 import io
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -102,6 +103,34 @@ class HookTest(CaptureSessionEndTest):
             self.assertEqual(cmd[cmd.index(flag) + 1], val)
         self.assertIn("--root", cmd)
 
+    def test_unsafe_session_id_does_not_spawn(self):
+        self.write_config("auto")
+        with mock.patch("subprocess.Popen") as popen:
+            self.run_hook({**PAYLOAD, "session_id": "../../x"})
+        self.assertEqual(self.spawned(popen), [])
+
+    def test_load_config_stderr_is_suppressed(self):
+        import lib
+        (self.root / ".claude" / "knowledge" / "config.yaml").write_text(
+            "mystery: 1\nscribe:\n  capture: auto\n")
+        err = io.StringIO()
+        with mock.patch.object(lib, "_config_warned", False), \
+                mock.patch("subprocess.Popen"), mock.patch("sys.stderr", err):
+            self.run_hook(PAYLOAD)
+        self.assertEqual(err.getvalue(), "")
+
+    def test_module_guard_in_subprocess_is_silent_and_inert(self):
+        self.write_config("auto")
+        env = {**os.environ, "KNOWLEDGE_EXTRACT": "1"}
+        proc = subprocess.run([sys.executable, str(HOOKS / "capture-session-end.py")],
+                              input=json.dumps(PAYLOAD), capture_output=True, text=True,
+                              env=env, cwd=self.base, timeout=30)
+        self.assertEqual(proc.returncode, 0)
+        self.assertEqual(proc.stdout, "")
+        self.assertEqual(proc.stderr, "")
+        self.assertFalse((self.base / "local" / "capture.log").exists())
+        self.assertFalse((self.base / "local").exists())
+
     def test_popen_failure_never_raises(self):
         self.write_config("transcript")
         with mock.patch("subprocess.Popen", side_effect=OSError("boom")):
@@ -116,7 +145,8 @@ class RunCaptureTest(CaptureSessionEndTest):
     def test_pipeline_enqueues_and_passes_vocab(self):
         rows = [{"statement": "Always use X", "quote": "q" * 12, "kind": "rule",
                  "scope_guess": "project", "theme": "t"}]
-        with mock.patch.object(run_capture, "extract", return_value=rows) as ext, \
+        with mock.patch.object(run_capture, "prepare_input", return_value=({}, "text")), \
+                mock.patch.object(run_capture, "extract", return_value=rows) as ext, \
                 mock.patch.object(run_capture, "enqueue", return_value=1) as enq:
             rc = run_capture.main(["--session", "s", "--transcript", "/nope",
                                    "--root", str(self.root), "--mode", "transcript"])
@@ -126,8 +156,34 @@ class RunCaptureTest(CaptureSessionEndTest):
         self.assertEqual(enq.call_args.args[0], rows)
         self.assertEqual(enq.call_args.args[1], "s")
 
+    def test_unsafe_session_id_reads_no_handoff(self):
+        with mock.patch.object(run_capture, "prepare_input") as prep:
+            rc = run_capture.main(["--session", "../../x", "--transcript", "/nope",
+                                   "--root", str(self.root)])
+        self.assertEqual(rc, 0)
+        prep.assert_not_called()
+
+    def test_no_root_does_not_log_or_create_dirs(self):
+        cwd = os.getcwd()
+        os.chdir(self.base)
+        try:
+            rc = run_capture.main(["--session", "s"])
+        finally:
+            os.chdir(cwd)
+        self.assertEqual(rc, 0)
+        self.assertFalse((self.base / "local").exists())
+
+    def test_empty_prepared_text_skips_extract(self):
+        with mock.patch.object(run_capture, "prepare_input", return_value=({}, "")), \
+                mock.patch.object(run_capture, "extract") as ext:
+            rc = run_capture.main(["--session", "s", "--transcript", "/nope",
+                                   "--root", str(self.root)])
+        self.assertEqual(rc, 0)
+        ext.assert_not_called()
+
     def test_exception_is_logged(self):
-        with mock.patch.object(run_capture, "extract", side_effect=RuntimeError("bad")):
+        with mock.patch.object(run_capture, "prepare_input", return_value=({}, "text")), \
+                mock.patch.object(run_capture, "extract", side_effect=RuntimeError("bad")):
             rc = run_capture.main(["--session", "s", "--transcript", "/nope",
                                    "--root", str(self.root)])
         self.assertEqual(rc, 0)

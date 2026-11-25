@@ -9,7 +9,10 @@ import os
 if os.environ.get("KNOWLEDGE_EXTRACT"):
     raise SystemExit(0)
 
+import contextlib  # noqa: E402
+import io  # noqa: E402
 import json  # noqa: E402
+import re  # noqa: E402
 import subprocess  # noqa: E402
 import sys  # noqa: E402
 from pathlib import Path  # noqa: E402
@@ -29,12 +32,15 @@ def main() -> None:
         session, transcript = payload.get("session_id"), payload.get("transcript_path")
         if not isinstance(session, str) or not isinstance(transcript, str):
             return
+        if not re.fullmatch(r"[A-Za-z0-9_-]+", session):
+            return
         import lib
         import paths
         root = paths.project_root()
         if not paths.has_knowledge(root):
             return
-        mode = lib.load_config(root)["scribe"]["capture"]
+        with contextlib.redirect_stderr(io.StringIO()):
+            mode = lib.load_config(root)["scribe"]["capture"]
         if mode == "off":
             return
         subprocess.Popen(
