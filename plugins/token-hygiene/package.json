@@ -1,0 +1,25 @@
+{
+  "name": "@officina-claude/token-hygiene",
+  "version": "0.3.0",
+  "description": "Per-session token metrics and /token-dashboard to chart them, plus guards that keep the context small: read caps, re-read dedup, long-output squashing and a watchdog that interrupts once the context passes 150k tokens, with opt-in guards for reads outside the project and for Opus subagents.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lucaOR/officina-claude.git",
+    "directory": "plugins/token-hygiene"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    ".claude-plugin",
+    "hooks",
+    "skills",
+    "!**/test_*.py",
+    "!**/testkit.py",
+    "!**/testsupport.py",
+    "!**/fixtures",
+    "!**/__pycache__",
+    "!**/*.pyc"
+  ]
+}

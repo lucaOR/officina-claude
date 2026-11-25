@@ -1,0 +1,27 @@
+{
+  "name": "@officina-claude/session",
+  "version": "0.2.4",
+  "description": "Interview-first idea refinement (/refine), session handoff notes that let /clear replace /compact (/handoff) with the pivot gate that checks each note against the work item's intent file, and a searchable archive of earlier sessions that follows the handoff chain (/recall).",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lucaOR/officina-claude.git",
+    "directory": "plugins/session"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    ".claude-plugin",
+    "agents",
+    "hooks",
+    "lib",
+    "skills",
+    "!**/test_*.py",
+    "!**/testkit.py",
+    "!**/testsupport.py",
+    "!**/fixtures",
+    "!**/__pycache__",
+    "!**/*.pyc"
+  ]
+}

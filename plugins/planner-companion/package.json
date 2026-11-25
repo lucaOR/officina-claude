@@ -1,0 +1,25 @@
+{
+  "name": "@officina-claude/planner-companion",
+  "version": "0.2.0",
+  "description": "Co-design a plan with Claude on a live local web page: decisions, diagrams and tasks, with sequence, workflow and ERD diagrams drawn offline.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lucaOR/officina-claude.git",
+    "directory": "plugins/planner-companion"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    ".claude-plugin",
+    "hooks",
+    "skills",
+    "!**/test_*.py",
+    "!**/testkit.py",
+    "!**/testsupport.py",
+    "!**/fixtures",
+    "!**/__pycache__",
+    "!**/*.pyc"
+  ]
+}

@@ -19,6 +19,17 @@ You can also run the renderer directly with a current Node (the tests run on Nod
 node plugins/diagrams/bin/diagram.mjs spec.json
 ```
 
+### From npm
+
+The package `@officina-claude/diagrams` is prepared for npm, but it may not be published yet. Once it is, you can run the renderer without cloning the repository. It needs Node 20 or newer.
+
+```
+npx @officina-claude/diagrams spec.json --out release.html
+npm install -g @officina-claude/diagrams    # then: diagram spec.json
+```
+
+The `diagram` command takes the same options as `bin/diagram.mjs`: `--out <file.html|file.svg>`, `--style <default|editorial>` and `--palette <file.json>`.
+
 ## Quickstart
 
 Save this as `release.json`. A row never holds coordinates, because the engine places every node.
@@ -118,4 +129,4 @@ node plugins/diagrams/bin/diagram.mjs release.json --style editorial --palette c
 
 ## Licence
 
-MIT, see the repository's `LICENSE`.
+MIT. The full text is in the `LICENSE` file at the root of the [officina-claude repository](https://github.com/lucaOR/officina-claude).

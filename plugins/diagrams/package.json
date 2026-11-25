@@ -1,0 +1,35 @@
+{
+  "name": "@officina-claude/diagrams",
+  "version": "0.1.1",
+  "description": "Sequence, workflow, entity-relationship, state, tree, timeline and architecture diagrams from compact rows, rendered offline with no dependencies to a standalone HTML page or an SVG file.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lucaOR/officina-claude.git",
+    "directory": "plugins/diagrams"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    ".claude-plugin",
+    "bin",
+    "lib",
+    "skills",
+    "examples",
+    "README.md",
+    "CHANGELOG.md",
+    "!**/test_*.py",
+    "!**/testkit.py",
+    "!**/testsupport.py",
+    "!**/fixtures",
+    "!**/__pycache__",
+    "!**/*.pyc"
+  ],
+  "bin": {
+    "diagram": "bin/diagram.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
