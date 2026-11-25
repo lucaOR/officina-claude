@@ -16,7 +16,7 @@ sys.path.insert(0, str(HOOKS.parent / "scripts"))
 import testkit  # noqa: E402
 
 HOOK_FILES = ("inject-knowledge-digest.py", "inject-rules-on-edit.py", "check-on-edit.py",
-              "scribe-gate.py", "scribe-brief.py")
+              "scribe-gate.py", "scribe-brief.py", "capture-session-end.py")
 
 REGISTRY = """\
 scope: project
@@ -74,6 +74,8 @@ class Base(unittest.TestCase):
                                "session_id": "s1"},
             "scribe-brief.py": {"hook_event_name": "SessionStart", "source": "startup",
                                 "session_id": "s1", "agent_type": "knowledge:scribe"},
+            "capture-session-end.py": {"hook_event_name": "SessionEnd", "session_id": "s1",
+                                       "transcript_path": "/nope", "cwd": str(project)},
         }
 
 
@@ -180,6 +182,7 @@ class TestHooksJson(unittest.TestCase):
             ("scribe-gate.py", "PreToolUse", "Skill"),
             ("inject-rules-on-edit.py", "PreToolUse", "Edit|Write|MultiEdit"),
             ("check-on-edit.py", "PostToolUse", "Edit|Write|MultiEdit"),
+            ("capture-session-end.py", "SessionEnd", None),
         })
 
 
