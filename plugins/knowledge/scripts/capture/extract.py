@@ -39,9 +39,9 @@ def extract(text, vocab, *, runner=subprocess.run):
                  + ", ".join(vocab) + "\n" + text)
         env = dict(os.environ, KNOWLEDGE_EXTRACT="1")
         proc = runner(["claude", "-p", "--model", "haiku", "--tools", "",
-                       "--no-session-persistence"],
+                       "--no-session-persistence", "--strict-mcp-config"],
                       input=stdin, capture_output=True, text=True,
-                      timeout=TIMEOUT, env=env)
+                      timeout=TIMEOUT, env=env, cwd="/")
         if proc.returncode != 0:
             return []
         source = _norm(text)

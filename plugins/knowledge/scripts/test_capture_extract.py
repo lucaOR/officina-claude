@@ -32,8 +32,9 @@ class TestExtract(unittest.TestCase):
             return FakeProc(JSON_OK)
         rows = extract.extract("USER: use shrink-0", ["flex-icon-shrink"], runner=runner)
         cmd, kw = calls[0]
-        self.assertEqual(cmd[:7], ["claude", "-p", "--model", "haiku", "--tools", "",
-                                   "--no-session-persistence"])
+        self.assertEqual(cmd[:8], ["claude", "-p", "--model", "haiku", "--tools", "",
+                                   "--no-session-persistence", "--strict-mcp-config"])
+        self.assertEqual(kw["cwd"], "/")
         self.assertEqual(kw["env"]["KNOWLEDGE_EXTRACT"], "1")
         self.assertEqual(kw["timeout"], 150)
         self.assertIn("KNOWN THEMES: flex-icon-shrink", kw["input"])
