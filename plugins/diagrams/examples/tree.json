@@ -1,0 +1,11 @@
+{"type": "tree", "title": "Plugin layout", "rows": [
+  ["root", "diagrams"],
+  ["lib", "lib"],
+  ["bin", "bin"],
+  ["rows", "rows.mjs", "focus"],
+  ["cli", "diagram.mjs", "frontend"],
+  ["root > lib"],
+  ["root > bin"],
+  ["lib > rows"],
+  ["bin > cli"]
+]}

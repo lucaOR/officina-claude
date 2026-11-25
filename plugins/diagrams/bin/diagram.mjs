@@ -3,10 +3,11 @@
 // prints a one-line JSON summary: {"ok":true,"out":<file>,"nodes":[...]} or {"ok":false,"error"}.
 import fs from 'node:fs';
 import { render } from '../lib/index.mjs';
+import { renderStandalone } from '../lib/standalone.mjs';
 import { esc } from '../lib/text.mjs';
 
 const USAGE = 'usage: diagram.mjs <spec.json> [--out <file.html|file.svg>] [--style <default|editorial>] [--palette <file.json>]\n'
-  + 'Renders a sequence, workflow or erd spec. The default output is the spec path with .html.\n';
+  + 'Renders a sequence, workflow, erd, state, tree, timeline or architecture spec. The default output is the spec path with .html.\n';
 const FONT = 'font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
 
 const done = (result, code) => {
@@ -47,9 +48,8 @@ const target = out || file.replace(/(\.json)?$/, '.html');
 const title = esc(spec?.title || spec?.type || 'Diagram');
 try {
   if (target.endsWith('.svg')) {
-    const { svg, css, nodes } = render(spec, { ...options, scope: 'svg.dg' });
-    // The scope is the root itself, so the stylesheet's own .dg rules give it the font.
-    fs.writeFileSync(target, svg.replace(/^<svg[^>]*>/, open => `${open}<style>${css}</style>`));
+    const { svg, nodes } = renderStandalone(spec, options);
+    fs.writeFileSync(target, svg);
     done({ ok: true, out: target, nodes }, 0);
   }
   const { svg, css, nodes } = render(spec, options);

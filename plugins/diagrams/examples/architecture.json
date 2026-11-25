@@ -1,0 +1,11 @@
+{"type": "architecture", "title": "Web app", "rows": [
+  ["group cloud", "Cloud"],
+  ["group data", "Data tier", "cloud"],
+  ["web", "Web app", "frontend"],
+  ["api", "API", "backend", "cloud"],
+  ["db", "Database", "database", "data"],
+  ["queue", "Job queue", "messagebus", "data"],
+  ["web > api", "HTTPS", "emphasis"],
+  ["api > db", "SQL"],
+  ["api > queue", "enqueue", "dashed"]
+]}

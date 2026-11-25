@@ -1,0 +1,11 @@
+{"type": "sequence", "title": "Question to stored answer", "rows": [
+  ["actor ui", "Page", "frontend"],
+  ["actor api", "Server"],
+  ["actor db", "Store", "database"],
+  ["phase", "Ask"],
+  ["ui", "api", "POST /questions"],
+  ["api", "ui", "202 queued", "return"],
+  ["phase", "Store"],
+  ["api", "db", "save answer", "emphasis"],
+  ["db", "db", "reindex", "dashed"]
+]}
