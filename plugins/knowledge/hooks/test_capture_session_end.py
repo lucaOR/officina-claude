@@ -216,6 +216,36 @@ class RunCaptureTest(CaptureSessionEndTest):
         self.assertTrue(str(prep.call_args.args[1]).endswith("handoff/new_2.md")
                         or prep.call_args.args[1] is None)
 
+    def _projects_dir(self, home):
+        slug = re.sub(r"[^A-Za-z0-9]", "-", str(self.root))
+        pdir = home / ".claude" / "projects" / slug
+        pdir.mkdir(parents=True)
+        return pdir
+
+    def test_session_without_transcript_resolves_that_session_file(self):
+        home = self.base / "home3"
+        pdir = self._projects_dir(home)
+        mine, newest = pdir / "mine-1.jsonl", pdir / "newer.jsonl"
+        mine.write_text("{}")
+        newest.write_text("{}")
+        os.utime(mine, (1, 1))
+        with mock.patch.dict(os.environ, {"HOME": str(home)}), \
+                mock.patch.object(run_capture, "prepare_input", return_value=({}, "")) as prep:
+            rc = run_capture.main(["--session", "mine-1", "--root", str(self.root)])
+        self.assertEqual(rc, 0)
+        self.assertEqual(str(prep.call_args.args[0]), str(mine))
+
+    def test_session_without_matching_file_is_logged_noop(self):
+        home = self.base / "home4"
+        pdir = self._projects_dir(home)
+        (pdir / "other.jsonl").write_text("{}")
+        with mock.patch.dict(os.environ, {"HOME": str(home)}), \
+                mock.patch.object(run_capture, "prepare_input") as prep:
+            rc = run_capture.main(["--session", "gone", "--root", str(self.root)])
+        self.assertEqual(rc, 0)
+        prep.assert_not_called()
+        self.assertIn("gone", (self.base / "local" / "capture.log").read_text())
+
     def test_defaults_without_any_transcript_is_quiet_noop(self):
         home = self.base / "home2"
         home.mkdir()

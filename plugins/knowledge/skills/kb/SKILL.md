@@ -35,12 +35,12 @@ facts, not a proposed YAML entry — routing and wording are the scribe's job, n
 
 Runs the capture extractor on the current session by hand, whatever `scribe.capture` says. In
 this file `{root}` is the project root. Call
-`python3 "${CLAUDE_SKILL_DIR}/../../scripts/capture/run_capture.py" --root {root}`.
-Without `--session` and `--transcript` it picks the newest transcript `.jsonl` in
-`~/.claude/projects/<slug>/` (the slug is the project root with every non-alphanumeric
-character replaced by `-`) and takes the session id from the file's name; that file is the
-current session because it is the one written last. Pass `--session <id> --transcript <path>`
-to capture another session. It always exits 0 and
+`python3 "${CLAUDE_SKILL_DIR}/../../scripts/capture/run_capture.py" --root {root} --session "${CLAUDE_SESSION_ID}"`.
+With `--session` and no `--transcript` it reads `~/.claude/projects/<slug>/<session>.jsonl`
+(the slug is the project root with every non-alphanumeric character replaced by `-`), so it
+captures exactly that session. Only when neither `--session` nor `--transcript` is given does it
+fall back to the newest transcript `.jsonl` in that directory. Pass
+`--session <id> --transcript <path>` to capture a transcript from elsewhere. It always exits 0 and
 queues the extracted rows with `meta.source=auto`; failures go to `.claude/knowledge/.local/capture.log`.
 The scribe lists those rows under "Auto-captured candidates" in the next `/knowledge:kb run` plan
 (score at least 0.35 shown with quote and score, the rest counted as held) and writes nothing
