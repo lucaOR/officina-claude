@@ -31,6 +31,16 @@ Queue line fields: `id`, `pusher`, `ts`, `head_sha` (at push time), `text`, `art
 (`path:line` / SHA / test-output path — cite what backs the observation), `consumed`. State
 facts, not a proposed YAML entry — routing and wording are the scribe's job, not the pusher's.
 
+## `/knowledge:kb learn` — capture this session's learnings (any session)
+
+Runs the capture extractor on the current session by hand, whatever `scribe.capture` says. Call
+`python3 ${CLAUDE_PLUGIN_ROOT}/scripts/capture/run_capture.py --session <id> --transcript <path> --root {root}`
+with the current session id, its transcript path and the project root. It always exits 0 and
+queues the extracted rows with `meta.source=auto`; failures go to `.claude/knowledge/.local/capture.log`.
+The scribe lists those rows under "Auto-captured candidates" in the next `/knowledge:kb run` plan
+(score at least 0.35 shown with quote and score, the rest counted as held) and writes nothing
+without approval.
+
 ## `/knowledge:kb run` — drain the queue (scribe-only)
 
 **Refuses immediately unless `KNOWLEDGE_ROLE == "scribe"` or `CLAUDE_ROLE == "scribe"`.** Re-check
@@ -85,7 +95,8 @@ Everything else, the lease and the queue included, works the same.
    default 7, `0` = every run) also `report.py`. It prints `{"full": bool, "findings": [...]}`; findings
    the user kept as-is are already filtered out while the rules behind them are unchanged.
 3. Present **one** combined ROUTE/MEMORY/DROP/ASK plan (queue rows + folded-in violations
-   together), per `knowledge:knowledge-capture`'s iron law, followed by a **Health** section that
+   together; `source=auto` rows go under "Auto-captured candidates" per the scribe agent: score
+   at least 0.35 listed with quote and score, the rest counted as held), per `knowledge:knowledge-capture`'s iron law, followed by a **Health** section that
    lists the `plan` findings grouped by category and triaged per "Health triage" below. Read-only —
    nothing written to the KB, the queue, or git yet.
 4. User dispositions the plan, per-item, not all-or-nothing. ROUTE and MEMORY items proceed

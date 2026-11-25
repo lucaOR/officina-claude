@@ -154,6 +154,14 @@ class TestSkillRefs(unittest.TestCase):
         self.assertNotIn("docs/kb-queue.md", text)
         self.assertIn(".claude/knowledge/.local/queue.md", text)
 
+    def test_kb_learn_calls_run_capture(self):
+        text = (SKILLS / "kb" / "SKILL.md").read_text()
+        self.assertIn("/knowledge:kb learn", text)
+        self.assertIn("python3 ${CLAUDE_PLUGIN_ROOT}/scripts/capture/run_capture.py "
+                      "--session <id> --transcript <path> --root {root}", text)
+        self.assertTrue((K / "scripts" / "capture" / "run_capture.py").is_file())
+        self.assertIn("Auto-captured candidates", text)
+
 
 if __name__ == "__main__":
     unittest.main()

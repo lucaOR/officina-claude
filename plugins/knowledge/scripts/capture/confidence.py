@@ -22,7 +22,7 @@ def score(row, rows, ledger_hits):
         others.discard(meta.get("session"))
         others.discard(None)
         total += 0.3 * min(len(others), 2) / 2
-    total += 0.2 * min(max(ledger_hits, 0), 2) / 2
+    total += 0.2 * min(max(int(ledger_hits or 0), 0), 2) / 2
     return total
 
 

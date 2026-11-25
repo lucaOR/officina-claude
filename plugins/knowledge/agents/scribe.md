@@ -23,3 +23,17 @@ Hard limits, with no exceptions:
 
 Follow the `knowledge:kb` skill exactly. It holds the run lease for the whole drain, so do not
 start a second run while one is in progress.
+
+## Auto-captured candidates
+
+Queue rows whose `meta.source` is `auto` (written by the SessionEnd capture hook, with a `quote`,
+a `theme` and a `kind` in `meta`) are candidates, not rules. Score each one with
+`capture.confidence.score(row, rows, ledger_hits)` from `scripts/capture/confidence.py`, passing
+the full unconsumed row list as `rows` and `0` as `ledger_hits` when you have no hit count.
+
+- A row with a score of at least 0.35 (`LISTED_MIN`) goes into the one plan under the heading
+  "Auto-captured candidates", with its quote and its score shown.
+- A row below 0.35 is held: it stays in the queue unconsumed and the plan only counts it
+  ("N held below 0.35").
+- Never turn a `source=auto` row into a rule, a memory note or a drop without presenting it in
+  that one plan and getting the user's approval.

@@ -25,6 +25,12 @@ class AgentTemplateTest(unittest.TestCase):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, description)
 
+    def test_scribe_lists_auto_rows_by_score(self):
+        text = (K / "agents" / "scribe.md").read_text(encoding="utf-8")
+        for needle in ("Auto-captured candidates", "source=auto", "held", "0.35", "score"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, text)
+
     def test_ccscribe_template(self):
         path = K / "templates" / "ccscribe"
         self.assertTrue(os.access(path, os.X_OK))

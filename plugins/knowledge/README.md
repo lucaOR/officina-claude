@@ -57,6 +57,10 @@ Any session can push an observation. State the fact and cite what backs it, and 
 
 The push is one locked append to `.claude/knowledge/.local/queue.md`. Nothing reads it back and no scribe needs to be running, so the queue is a durable capture list even if no scribe ever runs. A linked git worktree feeds the main checkout's queue. Everything under `.claude/knowledge/.local/` is per-machine state, and the directory contains its own `.gitignore`, so it never reaches a commit.
 
+### Automatic capture
+
+`scribe.capture` in `.claude/knowledge/config.yaml` controls automatic capture and is `off` by default, so nothing is captured until you opt in. The other modes are `auto`, `handoff` and `transcript`, which choose what the SessionEnd hook feeds the extractor. Extracted rows enter the same queue with `meta.source=auto`. The scribe scores them (0.2 base, plus a ruling bonus, cross-session recurrence and ledger hits), lists those scoring at least 0.35 with their quote and score under "Auto-captured candidates", and counts the rest as held. It never writes a rule from an auto row without your approval in the one plan. `/knowledge:kb learn` runs the extractor on the current session by hand.
+
 The other skills are `knowledge:knowledge-capture` (what is worth keeping), `knowledge:knowledge-check` (run the checks over a diff) and `knowledge:knowledge-route` (write a rule into the right scope and topic). The hooks do the rest on their own: the digest at `SessionStart`, rule injection before an edit, and the checks after it. Each hook exits silently in a project that has no `.claude/knowledge/`.
 
 ## The scribe
