@@ -6,6 +6,7 @@ from pathlib import Path
 
 MAX_ROWS = 6
 MAX_INPUT_CHARS = 30000
+MIN_QUOTE = 10
 TIMEOUT = 150
 KEYS = ("statement", "quote", "kind", "scope_guess", "theme")
 PROMPT = Path(__file__).with_name("prompt.txt")
@@ -23,7 +24,7 @@ def _first_list(out):
             val, _ = dec.raw_decode(out, i)
         except ValueError:
             val = None
-        if isinstance(val, list):
+        if isinstance(val, list) and any(isinstance(v, dict) for v in val):
             return val
         i = out.find("[", i + 1)
     return []
@@ -31,11 +32,14 @@ def _first_list(out):
 
 def extract(text, vocab, *, runner=subprocess.run):
     try:
-        text = text[-MAX_INPUT_CHARS:]
+        if len(text) > MAX_INPUT_CHARS:
+            text = text[-MAX_INPUT_CHARS:]
+            text = text.split("\n", 1)[1] if "\n" in text else text
         stdin = (PROMPT.read_text().rstrip("\n") + "\nKNOWN THEMES: "
                  + ", ".join(vocab) + "\n" + text)
         env = dict(os.environ, KNOWLEDGE_EXTRACT="1")
-        proc = runner(["claude", "-p", "--model", "haiku", "--tools", ""],
+        proc = runner(["claude", "-p", "--model", "haiku", "--tools", "",
+                       "--no-session-persistence"],
                       input=stdin, capture_output=True, text=True,
                       timeout=TIMEOUT, env=env)
         if proc.returncode != 0:
@@ -46,7 +50,7 @@ def extract(text, vocab, *, runner=subprocess.run):
             if not isinstance(r, dict) or not all(isinstance(r.get(k), str) for k in KEYS):
                 continue
             q = _norm(r["quote"])
-            if q and q in source:
+            if len(q) >= MIN_QUOTE and q in source:
                 rows.append({k: r[k] for k in KEYS})
         return rows[:MAX_ROWS]
     except Exception:

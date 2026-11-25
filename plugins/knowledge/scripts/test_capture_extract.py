@@ -19,8 +19,8 @@ def _row(quote, **kw):
 
 JSON_OK = "Here:\n" + json.dumps([_row("use shrink-0", theme="flex-icon-shrink")])
 JSON_BAD_QUOTE = json.dumps([_row("never said this")])
-SEVEN_ROWS_SOURCE = "USER: " + " ".join("rule%d" % i for i in range(7))
-SEVEN_ROWS_JSON = json.dumps([_row("rule%d" % i) for i in range(7)])
+SEVEN_ROWS_SOURCE = "USER: " + " ".join("rule-number-%d" % i for i in range(7))
+SEVEN_ROWS_JSON = json.dumps([_row("rule-number-%d" % i) for i in range(7)])
 
 
 class TestExtract(unittest.TestCase):
@@ -32,7 +32,8 @@ class TestExtract(unittest.TestCase):
             return FakeProc(JSON_OK)
         rows = extract.extract("USER: use shrink-0", ["flex-icon-shrink"], runner=runner)
         cmd, kw = calls[0]
-        self.assertEqual(cmd[:6], ["claude", "-p", "--model", "haiku", "--tools", ""])
+        self.assertEqual(cmd[:7], ["claude", "-p", "--model", "haiku", "--tools", "",
+                                   "--no-session-persistence"])
         self.assertEqual(kw["env"]["KNOWLEDGE_EXTRACT"], "1")
         self.assertEqual(kw["timeout"], 150)
         self.assertIn("KNOWN THEMES: flex-icon-shrink", kw["input"])
@@ -83,6 +84,37 @@ class TestExtract(unittest.TestCase):
         extract.extract(text, [], runner=runner)
         self.assertIn("TAIL-MARK", seen["input"])
         self.assertNotIn("HEAD-MARK", seen["input"])
+
+    def test_first_list_skips_lists_without_dicts(self):
+        out = "see [1] then " + json.dumps([_row("use shrink-0")])
+        rows = extract.extract("USER: use shrink-0", [], runner=lambda c, **k: FakeProc(out))
+        self.assertEqual(len(rows), 1)
+
+    def test_short_quote_dropped(self):
+        out = json.dumps([_row("shrink-0")])
+        self.assertEqual(extract.extract("USER: shrink-0", [],
+                                         runner=lambda c, **k: FakeProc(out)), [])
+
+    def test_cap_cuts_on_line_boundary(self):
+        seen = {}
+
+        def runner(c, **k):
+            seen.update(k)
+            return FakeProc("[]")
+        n = extract.MAX_INPUT_CHARS
+        text = "z" * (n + 100) + "\nlast"
+        extract.extract(text, [], runner=runner)
+        self.assertNotIn("zzz", seen["input"])
+        self.assertTrue(seen["input"].endswith("\nlast"))
+
+    def test_short_input_not_trimmed(self):
+        seen = {}
+
+        def runner(c, **k):
+            seen.update(k)
+            return FakeProc("[]")
+        extract.extract("first line\nsecond", [], runner=runner)
+        self.assertIn("first line", seen["input"])
 
 
 if __name__ == "__main__":
