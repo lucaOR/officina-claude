@@ -30,7 +30,17 @@ def _first_list(out):
     return []
 
 
-def extract(text, vocab, *, runner=subprocess.run):
+def _note(log, message):
+    if log is None:
+        return
+    try:
+        log(message)
+    except Exception:
+        pass
+
+
+def extract(text, vocab, *, runner=subprocess.run, log=None):
+    """Rows the extractor found. Returns [] on any failure; `log(message)` says why."""
     try:
         if len(text) > MAX_INPUT_CHARS:
             text = text[-MAX_INPUT_CHARS:]
@@ -43,6 +53,8 @@ def extract(text, vocab, *, runner=subprocess.run):
                       input=stdin, capture_output=True, text=True,
                       timeout=TIMEOUT, env=env, cwd="/")
         if proc.returncode != 0:
+            _note(log, f"extractor failed: exit {proc.returncode}: "
+                       f"{(proc.stderr or '')[:200]!r}")
             return []
         source = _norm(text)
         rows = []
@@ -53,5 +65,6 @@ def extract(text, vocab, *, runner=subprocess.run):
             if len(q) >= MIN_QUOTE and q in source:
                 rows.append({k: r[k] for k in KEYS})
         return rows[:MAX_ROWS]
-    except Exception:
+    except Exception as exc:
+        _note(log, f"extractor failed: {type(exc).__name__}: {str(exc)[:200]}")
         return []

@@ -1,13 +1,15 @@
 import json
+import subprocess
 import unittest
 
 from capture import extract
 
 
 class FakeProc:
-    def __init__(self, stdout, returncode=0):
+    def __init__(self, stdout, returncode=0, stderr=""):
         self.stdout = stdout
         self.returncode = returncode
+        self.stderr = stderr
 
 
 def _row(quote, **kw):
@@ -64,6 +66,39 @@ class TestExtract(unittest.TestCase):
         def boom(c, **k):
             raise TimeoutError()
         self.assertEqual(extract.extract("x", [], runner=boom), [])
+
+    def test_nonzero_exit_is_logged_with_code_and_stderr(self):
+        logged = []
+        rows = extract.extract("x", [], log=logged.append,
+                               runner=lambda c, **k: FakeProc("", 2, "boom " + "e" * 300))
+        self.assertEqual(rows, [])
+        self.assertEqual(len(logged), 1)
+        self.assertIn("exit 2", logged[0])
+        self.assertIn("boom", logged[0])
+        self.assertNotIn("e" * 201, logged[0])
+
+    def test_exception_is_logged_with_type(self):
+        logged = []
+
+        def boom(c, **k):
+            raise subprocess.TimeoutExpired("cmd", 150)
+        self.assertEqual(extract.extract("x", [], log=logged.append, runner=boom), [])
+        self.assertEqual(len(logged), 1)
+        self.assertIn("TimeoutExpired", logged[0])
+
+    def test_missing_binary_is_logged(self):
+        logged = []
+
+        def missing(c, **k):
+            raise FileNotFoundError("cmd")
+        self.assertEqual(extract.extract("x", [], log=logged.append, runner=missing), [])
+        self.assertIn("FileNotFoundError", logged[0])
+
+    def test_logger_failure_does_not_break_extract(self):
+        def bad_log(_):
+            raise RuntimeError("log broke")
+        self.assertEqual(extract.extract("x", [], log=bad_log,
+                                         runner=lambda c, **k: FakeProc("", 1)), [])
 
     def test_vocab_is_in_prompt_and_cap_is_6(self):
         seen = {}

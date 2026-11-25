@@ -69,7 +69,7 @@ def main(argv):
         if not text:
             return 0
         queued, _skipped = kb_queue.scan(root)
-        rows = extract(text, theme_vocab(queued))
+        rows = extract(text, theme_vocab(queued), log=lambda m: _log(root, m))
         enqueue(rows, args.session, root)
     except BaseException:
         _log(root, traceback.format_exc().strip().replace("\n", " | "))

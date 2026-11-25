@@ -157,6 +157,21 @@ class RunCaptureTest(CaptureSessionEndTest):
         self.assertEqual(enq.call_args.args[0], rows)
         self.assertEqual(enq.call_args.args[1], "s")
 
+    def test_extractor_failure_reaches_capture_log(self):
+        class Proc:
+            returncode, stdout, stderr = 7, "", "auth expired"
+        from capture import extract as extract_mod
+
+        def fake_extract(text, vocab, log=None):
+            return extract_mod.extract(text, vocab, log=log, runner=lambda *a, **k: Proc())
+        with mock.patch.object(run_capture, "prepare_input", return_value=({}, "text")), \
+                mock.patch.object(run_capture, "extract", side_effect=fake_extract):
+            run_capture.main(["--session", "s", "--transcript", "/nope",
+                              "--root", str(self.root), "--mode", "transcript"])
+        log = (self.base / "local" / "capture.log").read_text()
+        self.assertIn("exit 7", log)
+        self.assertIn("auth expired", log)
+
     def test_unsafe_session_id_reads_no_handoff(self):
         with mock.patch.object(run_capture, "prepare_input") as prep:
             rc = run_capture.main(["--session", "../../x", "--transcript", "/nope",
