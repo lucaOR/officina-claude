@@ -110,6 +110,8 @@ Spec: [`examples/architecture.json`](examples/architecture.json)
 
 `--palette colours.json` recolours a diagram. The file maps a node type (`frontend`, `backend`, `database`, `cloud`, `security`, `messagebus`, `external`, `focus`) or a theme part (`ink`, `muted`, `panel`, `line`, `lane`, `rule`, `emphasis`, `security`, `dashed`) to a colour. A colour is `#hex`, a strict `rgb()` or `hsl()`, or `var(--name)`, and a `[light, dark]` pair sets each scheme. Any other value is rejected, so nothing a palette holds can reach the stylesheet.
 
+By default the text, muted text and node fill follow the host page's CSS variables `--ink`, `--muted` and `--panel` and fall back to built-in light and dark colours when the page defines none. A `--palette` entry for `ink`, `muted` or `panel` replaces that.
+
 ```
 node plugins/diagrams/bin/diagram.mjs release.json --style editorial --palette colours.json
 ```

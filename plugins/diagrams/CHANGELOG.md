@@ -26,3 +26,5 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 
 - A palette value such as `red;}body{x` is rejected and never written into the stylesheet.
 - Group-border edge runs are routed around sibling nodes, and a group that spans lanes is rejected.
+- A timeline year below 100 is read as written, not as 1900 plus the year.
+- `diagram.mjs` rejects an unknown flag with the usage text and exit code 2, and matches the `.svg` extension in any case.

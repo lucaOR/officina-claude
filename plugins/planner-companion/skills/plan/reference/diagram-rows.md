@@ -167,6 +167,8 @@ Components, the groups that contain them and the connections between them.
 
 `--palette colours.json` recolours a diagram. The file maps a name to a colour. A name is a node type (`frontend`, `backend`, `database`, `cloud`, `security`, `messagebus`, `external`, `focus`) or a theme part (`ink`, `muted`, `panel`, `line`, `lane`, `rule`, `emphasis`, `security`, `dashed`). A colour is `#hex`, a strict `rgb()` or `hsl()` with numbers only, or `var(--name)`. A single string applies to both colour schemes; a `[light, dark]` pair sets each. Anything else fails with `palette <key>: invalid colour`.
 
+By default the text, muted text and node fill follow the host page's CSS variables `--ink`, `--muted` and `--panel` and fall back to built-in light and dark colours when the page defines none. A palette entry for `ink`, `muted` or `panel` replaces that.
+
 ```text
 {"database": ["#6d28d9", "#c4b5fd"], "focus": "#b91c1c", "ink": "var(--text)"}
 ```
