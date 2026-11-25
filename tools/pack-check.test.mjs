@@ -36,6 +36,42 @@ test('each plugin package matches its manifest and ships nothing private', () =>
   }
 });
 
+const marketplace = readJson(path.join(REPO, '.claude-plugin/marketplace.json'));
+
+test('marketplace, plugin.json and package.json agree on every publishable version', () => {
+  const skipped = [];
+  for (const p of marketplace.plugins) {
+    const dir = path.join(REPO, 'plugins', p.name);
+    const pkgFile = path.join(dir, 'package.json');
+    const pkg = fs.existsSync(pkgFile) ? readJson(pkgFile) : null;
+    if (!pkg || pkg.private) { skipped.push(p.name); continue; } // private plugins are never published
+    const man = readJson(path.join(dir, '.claude-plugin/plugin.json'));
+    assert.equal(p.version, man.version, `${p.name}: marketplace vs plugin.json`);
+    assert.equal(pkg.version, man.version, `${p.name}: package.json vs plugin.json`);
+  }
+  assert.deepEqual(skipped, ['scenario-matrix']);
+});
+
+test('a plugin CHANGELOG tops out at the released plugin version', () => {
+  let checked = 0;
+  for (const p of marketplace.plugins) {
+    const file = path.join(REPO, 'plugins', p.name, 'CHANGELOG.md');
+    if (!fs.existsSync(file)) continue;
+    const top = /^## \[(\d+\.\d+\.\d+)\]/m.exec(fs.readFileSync(file, 'utf8'));
+    assert.ok(top, `${p.name}: no released heading`);
+    assert.equal(top[1], readJson(path.join(REPO, 'plugins', p.name, '.claude-plugin/plugin.json')).version, `${p.name}: CHANGELOG top`);
+    checked++;
+  }
+  assert.ok(checked >= 1);
+});
+
+test('the marketplace description of diagrams names every renderer kind', async () => {
+  const { TYPES } = await import(path.join(REPO, 'plugins/diagrams/lib/index.mjs'));
+  const desc = marketplace.plugins.find(p => p.name === 'diagrams').description.toLowerCase();
+  const word = { erd: 'entity-relationship' };
+  for (const t of TYPES) assert.ok(desc.includes(word[t] ?? t), `description misses ${t}`);
+});
+
 test('the diagrams package exposes the diagram command', () => {
   assert.equal(readJson(path.join(REPO, 'plugins/diagrams/package.json')).bin.diagram, 'bin/diagram.mjs');
 });

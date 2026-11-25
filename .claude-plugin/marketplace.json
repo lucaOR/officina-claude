@@ -23,15 +23,15 @@
     {
       "name": "planner-companion",
       "source": "./plugins/planner-companion",
-      "description": "Co-design a plan with Claude on a live local web page: decisions, diagrams and tasks, with sequence, workflow and ERD diagrams drawn offline.",
-      "version": "0.2.0",
+      "description": "Co-design a plan with Claude on a live local web page: decisions, diagrams and tasks, with sequence, workflow, ER, state, tree, timeline and architecture diagrams drawn offline.",
+      "version": "0.2.1",
       "category": "productivity"
     },
     {
       "name": "diagrams",
       "source": "./plugins/diagrams",
-      "description": "Sequence, workflow and entity-relationship diagrams from compact rows, rendered offline with no dependencies to a standalone HTML page or an SVG file.",
-      "version": "0.1.1",
+      "description": "Sequence, workflow, entity-relationship, state, tree, timeline and architecture diagrams from compact rows, rendered offline with no dependencies to a standalone HTML page or an SVG file.",
+      "version": "0.2.0",
       "category": "productivity"
     },
     {
