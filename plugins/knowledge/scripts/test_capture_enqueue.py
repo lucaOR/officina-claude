@@ -34,6 +34,7 @@ class TestEnqueue(unittest.TestCase):
     def test_meta_written(self):
         enqueue.enqueue([row("Use  shrink-0", "flex")], "sess1", self.root)
         rec = kb_queue.read_unconsumed(self.root)[0]
+        self.assertEqual(rec["text"], "Use shrink-0")
         self.assertEqual(rec["pusher"], "auto-capture")
         self.assertEqual(rec["meta"], {
             "source": "auto", "session": "sess1", "theme": "flex",

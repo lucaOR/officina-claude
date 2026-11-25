@@ -32,13 +32,14 @@ def enqueue(rows, session_id, root, *, cap=6):
     for r in rows:
         if written >= cap:
             break
-        statement = _norm(r["statement"])
-        if not statement or statement in seen:
+        statement = " ".join(str(r["statement"]).split())
+        key = _norm(statement)
+        if not statement or key in seen:
             continue
         kb_queue.push(statement, pusher="auto-capture", root=root, meta={
             "source": "auto", "session": session_id, "theme": r.get("theme"),
             "scope_guess": r.get("scope_guess"), "kind": r.get("kind"),
             "quote": r.get("quote")})
-        seen.add(statement)
+        seen.add(key)
         written += 1
     return written
