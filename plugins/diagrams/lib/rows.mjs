@@ -2,7 +2,7 @@
 // skills/diagram/reference/rows.md. Every error names the 1-based row it comes from.
 
 export const TYPES = ['sequence', 'workflow', 'erd'];
-export const NODE_TYPES = ['frontend', 'backend', 'database', 'cloud', 'security', 'messagebus', 'external'];
+export const NODE_TYPES = ['frontend', 'backend', 'database', 'cloud', 'security', 'messagebus', 'external', 'focus'];
 export const VARIANTS = ['default', 'emphasis', 'security', 'dashed'];
 const KEYS = ['pk', 'fk', 'uk'];
 const ID = /^[A-Za-z][A-Za-z0-9_-]*$/;

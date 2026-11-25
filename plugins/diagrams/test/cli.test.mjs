@@ -70,3 +70,41 @@ test('--help prints the usage', () => {
   const out = execFileSync('node', [CLI, '--help'], { encoding: 'utf8' });
   assert.match(out, /diagram\.mjs <spec\.json> \[--out <file\.html\|file\.svg>\]/);
 });
+
+function palette(content) {
+  const file = join(mkdtempSync(join(tmpdir(), 'diagram-pal-')), 'palette.json');
+  writeFileSync(file, JSON.stringify(content));
+  return file;
+}
+const WFF = { ...WF, rows: [...WF.rows, ['x', 'Focus', 'focus']] };
+
+test('the CLI rejects a bad palette, names the key and writes nothing', () => {
+  const file = spec(WF);
+  const r = run(file, '--palette', palette({ ink: 'rgb(0;}x{)' }));
+  assert.equal(r.status, 1);
+  assert.match(JSON.parse(r.stdout).error, /palette ink: invalid colour/);
+  assert.equal(existsSync(file.replace(/\.json$/, '.html')), false);
+});
+
+test('--palette and --style reach the page; flags override spec.style', () => {
+  const file = spec({ ...WFF, style: 'editorial' });
+  const page = file.replace(/\.json$/, '.html');
+  let r = run(file, '--palette', palette({ focus: '#123456' }));
+  assert.equal(r.status, 0, r.stderr);
+  let html = readFileSync(page, 'utf8');
+  assert.match(html, /--dg-focus:#123456/);
+  assert.match(html, /stroke:var\(--dg-line\);stroke-width:1\}/);
+  r = run(file, '--style', 'default');
+  assert.equal(r.status, 0, r.stderr);
+  html = readFileSync(page, 'utf8');
+  assert.doesNotMatch(html, /stroke:var\(--dg-line\);stroke-width:1\}/);
+  r = run(file, '--style', 'fancy');
+  assert.equal(r.status, 1);
+  assert.match(JSON.parse(r.stdout).error, /style/);
+});
+
+test('an unreadable palette file fails with a message', () => {
+  const r = run(spec(WF), '--palette', '/nonexistent/p.json');
+  assert.equal(r.status, 1);
+  assert.match(JSON.parse(r.stdout).error, /cannot read palette/);
+});

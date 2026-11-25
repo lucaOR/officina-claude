@@ -8,6 +8,7 @@ import { workflow } from './workflow.mjs';
 import { erd } from './erd.mjs';
 
 export { TYPES, stylesheet };
+export { loadPalette } from './palette.mjs';
 
 const DRAW = { sequence, workflow, erd };
 
@@ -17,9 +18,9 @@ const DRAW = { sequence, workflow, erd };
  * the bad row when the rows do not parse.
  * @returns {{svg: string, css: string, nodes: string[], boxes: {id: string, x: number, y: number, w: number, h: number, parent?: string}[], width: number, height: number}}
  */
-export function render(spec, { prefix = 'dg-', scope = '.dg-host' } = {}) {
+export function render(spec, { prefix = 'dg-', scope = '.dg-host', style, palette } = {}) {
   const model = parseRows(spec?.type, spec?.rows);
   const drawn = DRAW[spec.type](model, { p: prefix });
   const svg = root({ p: prefix, type: spec.type, title: spec.title || spec.type, desc: drawn.desc, width: drawn.width, height: drawn.height, body: drawn.body });
-  return { svg, css: stylesheet(scope), nodes: drawn.nodes, boxes: drawn.boxes, width: drawn.width, height: drawn.height };
+  return { svg, css: stylesheet(scope, { style: style ?? spec.style, palette }), nodes: drawn.nodes, boxes: drawn.boxes, width: drawn.width, height: drawn.height };
 }

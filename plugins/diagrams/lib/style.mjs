@@ -1,30 +1,13 @@
 // The diagram stylesheet, every rule scoped under one selector. Colours follow the system
 // colour scheme, and take the host page's --ink, --muted and --panel when it defines them.
 
-const TYPES = {
-  frontend: ['#0891b2', '#22d3ee'],
-  backend: ['#059669', '#34d399'],
-  database: ['#7c3aed', '#a78bfa'],
-  cloud: ['#d97706', '#fbbf24'],
-  security: ['#e11d48', '#fb7185'],
-  messagebus: ['#ea580c', '#fb923c'],
-  external: ['#64748b', '#94a3b8'],
-};
-const THEME = {
-  ink: ['var(--ink, #1d1d1f)', 'var(--ink, #ececee)'],
-  muted: ['var(--muted, #5b6474)', 'var(--muted, #9c9ca4)'],
-  panel: ['var(--panel, #fff)', 'var(--panel, #1e1e21)'],
-  line: ['#64748b', '#94a3b8'],
-  lane: ['rgba(100, 116, 139, .06)', 'rgba(148, 163, 184, .06)'],
-  rule: ['#cbd5e1', '#3b4250'],
-  emphasis: ['#059669', '#34d399'],
-  security: ['#e11d48', '#fb7185'],
-  dashed: ['#7c3aed', '#a78bfa'],
-};
+import { TYPES, THEME, loadPalette } from './palette.mjs';
 
-const vars = scheme => [
-  ...Object.entries(THEME).map(([k, v]) => `--dg-${k}:${v[scheme]}`),
-  ...Object.entries(TYPES).map(([k, v]) => `--dg-${k}:${v[scheme]}`),
+const STYLES = ['default', 'editorial'];
+
+const vars = (scheme, pal) => [
+  ...Object.entries(THEME).map(([k, v]) => `--dg-${k}:${(pal[k] || v)[scheme]}`),
+  ...Object.entries(TYPES).map(([k, v]) => `--dg-${k}:${(pal[k] || v)[scheme]}`),
 ].join(';');
 
 const RULES = [
@@ -73,6 +56,15 @@ const RULES = [
   ['.dg-card', 'fill:none;stroke:var(--dg-line);stroke-width:1.5'],
 ];
 
+// Editorial: every node is a panel with a hairline, no tint; the focus node alone takes colour.
+const EDITORIAL = [
+  ['.dg-node .dg-shape', 'fill:var(--dg-panel);stroke:var(--dg-line);stroke-width:1'],
+  ['.dg-node.t-focus .dg-shape', 'fill:var(--dg-focus);stroke:var(--dg-focus)'],
+  ['.dg-node.t-focus text', 'fill:var(--dg-panel)'],
+  ['.dg-edge, .dg-msg, .dg-rel', 'stroke-width:1'],
+  ['.dg-node-label', 'font-weight:500'],
+];
+
 // `.dg` as a whole class name, not the start of `.dg-node` or `.dg-host`.
 const DG = /^\.dg(?![\w-])/;
 
@@ -82,10 +74,12 @@ const DG = /^\.dg(?![\w-])/;
  * rooted at `.dg` joins the scope instead of nesting under it: `.dg text` becomes
  * `svg.dg text`. Every other rule still nests, which keeps it more specific than those.
  */
-export function stylesheet(scope) {
+export function stylesheet(scope, { style = 'default', palette } = {}) {
+  if (!STYLES.includes(style)) throw new Error(`style: expected one of ${STYLES.join(', ')}`);
+  const pal = loadPalette(palette);
   const onRoot = /\.dg(?![\w-])/.test(scope);
   const scoped = selector => selector.split(',').map(s => s.trim())
     .map(s => (onRoot && DG.test(s) ? `${scope}${s.slice('.dg'.length)}` : `${scope} ${s}`)).join(',');
-  return `${scope}{${vars(0)}}@media (prefers-color-scheme: dark){${scope}{${vars(1)}}}`
-    + RULES.map(([selector, body]) => `${scoped(selector)}{${body}}`).join('');
+  return `${scope}{${vars(0, pal)}}@media (prefers-color-scheme: dark){${scope}{${vars(1, pal)}}}`
+    + (style === 'editorial' ? [...RULES, ...EDITORIAL] : RULES).map(([selector, body]) => `${scoped(selector)}{${body}}`).join('');
 }
