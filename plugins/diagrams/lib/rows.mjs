@@ -1,7 +1,7 @@
 // Compact rows to a diagram model. A row is a list of string cells; the grammar is in
 // skills/diagram/reference/rows.md. Every error names the 1-based row it comes from.
 
-export const TYPES = ['sequence', 'workflow', 'erd', 'state', 'tree', 'timeline'];
+export const TYPES = ['sequence', 'workflow', 'erd', 'state', 'tree', 'timeline', 'architecture'];
 export const NODE_TYPES = ['frontend', 'backend', 'database', 'cloud', 'security', 'messagebus', 'external', 'focus'];
 export const VARIANTS = ['default', 'emphasis', 'security', 'dashed'];
 const KEYS = ['pk', 'fk', 'uk'];
@@ -39,7 +39,7 @@ function normalise(rows) {
 export function parseRows(type, rows) {
   if (!TYPES.includes(type)) fail(null, `type must be one of ${TYPES.join(', ')}, got "${type}"`);
   const list = normalise(rows);
-  return { sequence, workflow, erd, state, tree, timeline }[type](list);
+  return { sequence, workflow, erd, state, tree, timeline, architecture }[type](list);
 }
 
 // ---- sequence --------------------------------------------------------------------------------
@@ -311,4 +311,55 @@ function timeline(rows) {
   });
   if (!events.length) fail(null, 'a timeline needs at least one event');
   return { tracks, events };
+}
+
+// ---- architecture ----------------------------------------------------------------------------
+
+function architecture(rows) {
+  // Pass 1 collects every group declaration, so a group may name a parent declared further down.
+  const groups = [];
+  const groupIds = new Set();
+  rows.forEach((row, i) => {
+    const m = /^group\s+(\S+)$/.exec(row[0]);
+    if (!m) return;
+    cellCount(row, i, 'group', 2, 3);
+    const id = checkId(m[1], i);
+    if (groupIds.has(id)) fail(i, `group "${id}" is declared twice`);
+    groupIds.add(id);
+    groups.push({ id, label: needLabel(row[1], i, 'a group'), parent: row[2] || null, row: i });
+  });
+  // Pass 2 validates parents in row order, so a cycle is reported on the row that closes it.
+  const parentOf = new Map();
+  for (const g of groups) {
+    if (!g.parent) continue;
+    if (!groupIds.has(g.parent)) fail(g.row, `unknown group "${g.parent}"`);
+    for (let up = g.parent; up !== undefined; up = parentOf.get(up)) {
+      if (up === g.id) fail(g.row, `group "${g.id}" inside "${g.parent}" makes a cycle`);
+    }
+    parentOf.set(g.id, g.parent);
+  }
+
+  const nodes = [];
+  const ids = new Set();
+  rows.forEach((row, i) => {
+    if (/^group\s/.test(row[0]) || row[0].includes('>')) return;
+    cellCount(row, i, 'component', 2, 4);
+    const id = checkId(row[0], i);
+    if (groupIds.has(id)) fail(i, `id "${id}" is already a group`);
+    if (ids.has(id)) fail(i, `component "${id}" is declared twice`);
+    ids.add(id);
+    if (row[3] && !groupIds.has(row[3])) fail(i, `unknown group "${row[3]}"`);
+    nodes.push({ id, label: needLabel(row[1], i, 'a component'), type: oneOf(row[2], NODE_TYPES, 'type', i, 'backend'), group: row[3] || null });
+  });
+  if (!nodes.length) fail(null, 'an architecture needs at least one component');
+
+  const edges = [];
+  rows.forEach((row, i) => {
+    if (!row[0].includes('>')) return;
+    cellCount(row, i, 'connection', 1, 3);
+    const [from, to] = parseEdge(row, i);
+    for (const end of [from, to]) if (!ids.has(end)) fail(i, `unknown node "${end}"`);
+    edges.push({ from, to, label: row[1] || '', variant: oneOf(row[2], VARIANTS, 'variant', i, 'default') });
+  });
+  return { groups: groups.map(({ row, ...g }) => g), nodes, edges };
 }

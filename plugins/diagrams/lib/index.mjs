@@ -9,11 +9,12 @@ import { erd } from './erd.mjs';
 import { state } from './state.mjs';
 import { tree } from './tree.mjs';
 import { timeline } from './timeline.mjs';
+import { architecture } from './architecture.mjs';
 
 export { TYPES, stylesheet };
 export { loadPalette } from './palette.mjs';
 
-const DRAW = { sequence, workflow, erd, state, tree, timeline };
+const DRAW = { sequence, workflow, erd, state, tree, timeline, architecture };
 
 /**
  * Renders `spec`. Every id in the SVG starts with `prefix`, so several diagrams can share a
