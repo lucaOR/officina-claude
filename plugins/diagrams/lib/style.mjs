@@ -57,6 +57,9 @@ const RULES = [
   ['.dg-initial, .dg-final-dot', 'fill:var(--dg-line)'],
   ['.dg-final-ring', 'fill:none;stroke:var(--dg-line);stroke-width:1.5'],
   ['.dg-tree-edge', 'fill:none;stroke:var(--dg-line);stroke-width:1.5'],
+  ['.dg-axis', 'fill:none;stroke:var(--dg-line);stroke-width:1.5'],
+  ['.dg-stem', 'fill:none;stroke:var(--dg-rule);stroke-width:1'],
+  ['.dg-when', 'fill:var(--dg-muted);font-size:11px'],
 ];
 
 // Editorial: every node is a panel with a hairline, no tint; the focus node alone takes colour.

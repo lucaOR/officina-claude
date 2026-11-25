@@ -1,7 +1,7 @@
 // Compact rows to a diagram model. A row is a list of string cells; the grammar is in
 // skills/diagram/reference/rows.md. Every error names the 1-based row it comes from.
 
-export const TYPES = ['sequence', 'workflow', 'erd', 'state', 'tree'];
+export const TYPES = ['sequence', 'workflow', 'erd', 'state', 'tree', 'timeline'];
 export const NODE_TYPES = ['frontend', 'backend', 'database', 'cloud', 'security', 'messagebus', 'external', 'focus'];
 export const VARIANTS = ['default', 'emphasis', 'security', 'dashed'];
 const KEYS = ['pk', 'fk', 'uk'];
@@ -39,7 +39,7 @@ function normalise(rows) {
 export function parseRows(type, rows) {
   if (!TYPES.includes(type)) fail(null, `type must be one of ${TYPES.join(', ')}, got "${type}"`);
   const list = normalise(rows);
-  return { sequence, workflow, erd, state, tree }[type](list);
+  return { sequence, workflow, erd, state, tree, timeline }[type](list);
 }
 
 // ---- sequence --------------------------------------------------------------------------------
@@ -273,4 +273,42 @@ function tree(rows) {
     edges.push({ from, to });
   });
   return { nodes, edges };
+}
+
+// ---- timeline --------------------------------------------------------------------------------
+
+const DATE = /^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?$/;
+
+function parseDate(text, i) {
+  const m = DATE.exec(text);
+  const [y, mo, d] = m ? [+m[1], m[2] ? +m[2] : 1, m[3] ? +m[3] : 1] : [];
+  const day = m ? new Date(Date.UTC(y, mo - 1, d)) : null;
+  if (!day || mo < 1 || mo > 12 || day.getUTCMonth() !== mo - 1 || day.getUTCDate() !== d) {
+    fail(i, `date "${text}" is not YYYY, YYYY-MM or YYYY-MM-DD`);
+  }
+  return day.getTime() / 86400000; // days since 1970-01-01
+}
+
+function timeline(rows) {
+  const tracks = [];
+  rows.forEach((row, i) => {
+    const m = /^track\s+(\S+)$/.exec(row[0]);
+    if (!m) return;
+    cellCount(row, i, 'track', 2, 2);
+    const id = checkId(m[1], i);
+    if (tracks.some(t => t.id === id)) fail(i, `track "${id}" is declared twice`);
+    tracks.push({ id, label: needLabel(row[1], i, 'a track') });
+  });
+
+  const events = [];
+  rows.forEach((row, i) => {
+    if (/^track\s/.test(row[0])) return;
+    cellCount(row, i, 'timeline event', 2, 4);
+    const day = parseDate(row[0], i);
+    const label = needLabel(row[1], i, 'an event');
+    if (row[2] && !tracks.some(t => t.id === row[2])) fail(i, `track "${row[2]}" is not declared`);
+    events.push({ id: `e${events.length + 1}`, when: row[0], day, label, track: row[2] || tracks[0]?.id || null, type: oneOf(row[3], NODE_TYPES, 'type', i, 'backend') });
+  });
+  if (!events.length) fail(null, 'a timeline needs at least one event');
+  return { tracks, events };
 }
