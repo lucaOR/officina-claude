@@ -29,6 +29,10 @@ class TestPrepareInput(unittest.TestCase):
             _line(type="user", isMeta=True,
                   message={"role": "user", "content": "META-ONLY"}),
             _line(type="user", message={"role": "user", "content": "<command-name>x</command-name>"}),
+            _line(type="user", isCompactSummary=True,
+                  message={"role": "user", "content": "COMPACT-SUMMARY-ONLY"}),
+            _line(type="user", isVisibleInTranscriptOnly=True,
+                  message={"role": "user", "content": "VISIBLE-ONLY"}),
             "not json",
         ]
         self.transcript = d / "t.jsonl"
@@ -53,6 +57,8 @@ class TestPrepareInput(unittest.TestCase):
         _, text = prepare.prepare_input(self.transcript, None, 'transcript')
         self.assertNotIn('SIDECHAIN-ONLY', text)
         self.assertNotIn('META-ONLY', text)
+        self.assertNotIn('COMPACT-SUMMARY-ONLY', text)
+        self.assertNotIn('VISIBLE-ONLY', text)
         self.assertNotIn('command-name', text)
 
     def test_assistant_text_capped_and_tool_names_collapsed(self):

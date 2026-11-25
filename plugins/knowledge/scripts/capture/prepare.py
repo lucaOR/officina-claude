@@ -33,7 +33,8 @@ def _filter(transcript_path):
             obj = json.loads(raw)
         except ValueError:
             continue
-        if not isinstance(obj, dict) or obj.get("isSidechain") or obj.get("isMeta"):
+        if not isinstance(obj, dict) or obj.get("isSidechain") or obj.get("isMeta") \
+                or obj.get("isCompactSummary") or obj.get("isVisibleInTranscriptOnly"):
             continue
         msg = obj.get("message")
         if not isinstance(msg, dict):
