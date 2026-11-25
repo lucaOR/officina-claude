@@ -54,6 +54,8 @@ const RULES = [
   ['.k-uk rect', 'fill:none;stroke:var(--dg-rule);stroke-width:1'],
   ['.k-uk text', 'fill:var(--dg-muted)'],
   ['.dg-card', 'fill:none;stroke:var(--dg-line);stroke-width:1.5'],
+  ['.dg-initial, .dg-final-dot', 'fill:var(--dg-line)'],
+  ['.dg-final-ring', 'fill:none;stroke:var(--dg-line);stroke-width:1.5'],
 ];
 
 // Editorial: every node is a panel with a hairline, no tint; the focus node alone takes colour.

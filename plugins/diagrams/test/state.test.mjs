@@ -23,6 +23,12 @@ test('state: a self-loop is drawn as a path with its label', () => {
   assert.equal((svg.match(/class="dg-edge /g) || []).length, 5);
   assert.match(svg, /retry/);
 });
+test('state: the stylesheet styles the marker shapes', () => {
+  const { css } = render(spec);
+  for (const cls of ['dg-initial', 'dg-final-ring', 'dg-final-dot']) {
+    assert.match(css, new RegExp(`\\.${cls}[^{]*\\{[^}]*(fill|stroke):var\\(--dg-line\\)`), `no rule for .${cls}`);
+  }
+});
 test('state: is registered after erd', () => assert.deepEqual(TYPES.slice(0, 4), ['sequence', 'workflow', 'erd', 'state']));
 test('state: a transition to an unknown state names the row', () => assert.throws(bad([['a', 'A'], ['a > b']]), /^Error: Row 2: unknown state "b"/));
 test('state: bad rows name the row', () => {
