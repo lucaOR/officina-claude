@@ -1,5 +1,6 @@
 // The plan source format: load, validate and index. See reference/source-format.md.
 import fs from 'node:fs';
+import { TYPES } from './diagram/index.mjs';
 
 export const CODE_RE = /\b([DTS])(\d+)\b/g;
 const KINDS = { D: 'decision', T: 'task', S: 'scenario' };
@@ -7,7 +8,7 @@ const COLLECTIONS = { D: 'decisions', T: 'tasks', S: 'scenarios' };
 const ID_RE = /^([DTS])(\d+)$/;
 // A domain id is used in tab anchors, `domain:<id>` codes and `check:<id>.<n>` ask targets.
 const SLUG_RE = /^[a-z][a-z0-9-]*$/;
-const DIAGRAM_TYPES = new Set(['sequence', 'workflow', 'erd']);
+const DIAGRAM_TYPES = new Set(TYPES);
 const MANDATORY_SLOTS = ['scale', 'dataFrom'];
 
 export function loadSource(file) {
@@ -73,7 +74,7 @@ function checkRows(out, path, rows) {
 }
 
 function checkDiagram(out, path, diagram) {
-  if (!DIAGRAM_TYPES.has(diagram.type)) out.push({ code: 'diagram-type', path: `${path}.type`, message: `diagram type must be one of sequence, workflow, erd (got ${JSON.stringify(diagram.type)})` });
+  if (!DIAGRAM_TYPES.has(diagram.type)) out.push({ code: 'diagram-type', path: `${path}.type`, message: `diagram type must be one of ${TYPES.join(', ')} (got ${JSON.stringify(diagram.type)})` });
   checkRows(out, `${path}.rows`, diagram.rows);
 }
 

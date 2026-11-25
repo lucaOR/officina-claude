@@ -35,7 +35,7 @@ Diagrams are compact rows, described in `diagram-rows.md`. Each diagram field ta
 | Source field | Type | Shape |
 |---|---|---|
 | `flow` | `sequence` | `{"title", "rows", "phaseDomains"}` |
-| `domains[].diagram` | `workflow`, `sequence` or `erd` | `{"type", "title", "rows"}` |
+| `domains[].diagram` | `sequence`, `workflow`, `erd`, `state`, `tree`, `timeline` or `architecture` | `{"type", "title", "rows"}` |
 | `entities` | `erd` | `{"title", "rows"}` |
 
 In `flow`, each phase label is a key of `phaseDomains`, such as `{"Ask": "ask"}`, so that its band links to the domain that decides it. A decision's `nodes` are node, actor or entity ids from these rows, or `m<n>` for a sequence's n-th message. The validator checks only that rows are arrays of strings. To check that a diagram renders, write it as `{"type", "title", "rows"}` to a spec file, with `sequence` for the flow and `erd` for the entities, and run `planning.mjs diagram <spec.json>`.
@@ -61,7 +61,7 @@ In `flow`, each phase label is a key of `phaseDomains`, such as `{"Ask": "ask"}`
 | `pick-unknown` | `pick` is not an option key |
 | `recommended-missing` | a live open decision lacks `recommended` |
 | `recommended-unknown` | `recommended` is not an option key |
-| `diagram-type` | a domain diagram type is not `sequence`, `workflow` or `erd` |
+| `diagram-type` | a domain diagram type is not one of the seven kinds, `sequence`, `workflow`, `erd`, `state`, `tree`, `timeline` or `architecture` |
 | `diagram-rows` | `rows` (a diagram, the flow or entities) is not an array of string arrays |
 | `ref-unknown` | a code does not exist (removed elements still count as existing) |
 | `change-unknown` | with `undo`: the change id is not in the change log |

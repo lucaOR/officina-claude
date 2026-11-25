@@ -1,5 +1,5 @@
-// Renders a compact-row diagram for the plan page with the diagrams plugin's renderer,
-// which `./diagram` links to. Ids are prefixed per diagram, so several share one page, and
+// Renders a compact-row diagram for the plan page with the diagrams plugin's renderer.
+// `./diagram` is a generated copy of it: node tools/sync-diagram.mjs refreshes it. Ids are prefixed per diagram, so several share one page, and
 // the stylesheet is scoped under the page's diagram wrapper.
 import { render, TYPES } from './diagram/index.mjs';
 

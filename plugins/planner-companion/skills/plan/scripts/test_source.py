@@ -64,7 +64,7 @@ class SourceTests(CliTestCase):
     def test_unknown_domain_and_diagram_type(self):
         s = fixture()
         s["decisions"][0]["domain"] = "nope"
-        s["domains"][0]["diagram"]["type"] = "tree"
+        s["domains"][0]["diagram"]["type"] = "gantt"
         names = self.code_names(s)
         self.assertIn("domain-unknown", names)
         self.assertIn("diagram-type", names)
