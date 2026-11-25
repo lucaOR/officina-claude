@@ -10,10 +10,13 @@ import { REPO, plugins, privatePlugins, readJson, pack, checkPackage } from './p
 // A throwaway copy of a real package; the real ones are never mutated.
 function tempCopy(dir) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'pack-check-'));
+  made.push(tmp);
   const to = path.join(tmp, basename(dir));
   fs.cpSync(dir, to, { recursive: true, filter: src => !src.includes('node_modules') });
   return to;
 }
+const made = [];
+test.after(() => { for (const d of made) fs.rmSync(d, { recursive: true, force: true }); });
 const edit = (dir, file, fn) => {
   const p = path.join(dir, file);
   fs.writeFileSync(p, JSON.stringify(fn(readJson(p)), null, 2));
@@ -67,7 +70,36 @@ test('forbidden paths in the tarball fail', () => {
   for (const f of ['.project-terms', '.env', 'run.log', '__pycache__/x.pyc']) fs.writeFileSync(path.join(dir, 'extra', f), 'x');
   edit(dir, 'package.json', p => ({ ...p, files: [...p.files, 'extra'] }));
   const problems = checkPackage(dir).problems.join('\n');
-  for (const f of ['.project-terms', '.env', 'run.log', '__pycache__']) assert.match(problems, new RegExp(f.replace('.', '\\.')));
+  for (const f of ['.project-terms', '.env', 'run.log', '__pycache__']) assert.match(problems, new RegExp(f.replaceAll('.', '\\.')));
+});
+
+test('a fixtures directory in the tarball fails', () => {
+  const dir = tempCopy(path.join(REPO, 'plugins/token-hygiene'));
+  fs.mkdirSync(path.join(dir, 'extra/fixtures'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'extra/fixtures/a.json'), '{}');
+  edit(dir, 'package.json', p => ({ ...p, files: [...p.files, 'extra'] }));
+  assert.match(checkPackage(dir).problems.join('\n'), /forbidden path.*extra\/fixtures\/a\.json/);
+});
+
+test('a key file in the tarball fails and is named', () => {
+  const dir = tempCopy(path.join(REPO, 'plugins/token-hygiene'));
+  fs.mkdirSync(path.join(dir, 'extra'));
+  for (const f of ['server.pem', 'id_rsa', 'credentials.json']) fs.writeFileSync(path.join(dir, 'extra', f), 'x');
+  edit(dir, 'package.json', p => ({ ...p, files: [...p.files, 'extra'] }));
+  const problems = checkPackage(dir).problems.join('\n');
+  for (const f of ['server\\.pem', 'id_rsa', 'credentials\\.json']) assert.match(problems, new RegExp(`forbidden path.*${f}`));
+});
+
+test('Python test files in the tarball fail', () => {
+  const dir = tempCopy(path.join(REPO, 'plugins/token-hygiene'));
+  edit(dir, 'package.json', p => ({ ...p, files: p.files.filter(f => f !== '!**/test_*.py') }));
+  assert.match(checkPackage(dir).problems.join('\n'), /forbidden path.*test_[^/]*\.py/);
+});
+
+test('a changed bin value fails', () => {
+  const dir = tempCopy(path.join(REPO, 'plugins/diagrams'));
+  edit(dir, 'package.json', p => ({ ...p, bin: { diagram: 'bin/other.mjs' } }));
+  assert.match(checkPackage(dir).problems.join('\n'), /bin is/);
 });
 
 test('a missing manifest in the tarball fails', () => {

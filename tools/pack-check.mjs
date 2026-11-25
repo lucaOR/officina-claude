@@ -14,7 +14,10 @@ export const plugins = ['diagrams', 'session', 'token-hygiene', 'planner-compani
 // Kept out of npm on purpose: must stay private.
 export const privatePlugins = ['scenario-matrix'].map(at);
 
-const FORBIDDEN = [/(^|\/)node_modules(\/|$)/, /(^|\/)__pycache__(\/|$)/, /(^|\/)\.project-terms$/, /(^|\/)\.env(\.|$)/, /\.log$/, /\.pyc$/];
+const FORBIDDEN = [/(^|\/)node_modules(\/|$)/, /(^|\/)__pycache__(\/|$)/, /(^|\/)\.project-terms$/, /(^|\/)\.env(\.|$)/, /\.log$/, /\.pyc$/,
+  /(^|\/)fixtures(\/|$)/, /\.(pem|key)$/, /(^|\/)id_(rsa|dsa|ecdsa|ed25519)(\.pub)?$/, /(^|\/)(credentials|secrets?)[^/]*$/i, /(^|\/)\.npmrc$/, /(^|\/)test_[^/]*\.py$/];
+// The only plugin with a command, and the exact value it must declare.
+const EXPECTED_BIN = { diagrams: { diagram: 'bin/diagram.mjs' } };
 
 export const readJson = file => JSON.parse(fs.readFileSync(file, 'utf8'));
 
@@ -22,7 +25,10 @@ export const readJson = file => JSON.parse(fs.readFileSync(file, 'utf8'));
 export function pack(dir) {
   const r = spawnSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], { cwd: dir, encoding: 'utf8' });
   if (r.status !== 0) throw new Error(`npm pack failed in ${dir}: ${r.stderr.trim()}`);
-  return JSON.parse(r.stdout)[0].files.map(f => f.path);
+  // npm may print notices around the JSON; the array starts at a line beginning with "[".
+  const start = r.stdout.search(/^\[/m);
+  if (start < 0) throw new Error(`npm pack printed no JSON in ${dir}`);
+  return JSON.parse(r.stdout.slice(start))[0].files.map(f => f.path);
 }
 
 export function checkPackage(dir) {
@@ -38,6 +44,8 @@ export function checkPackage(dir) {
   try { files = pack(dir); } catch (e) { return { problems: [...problems, e.message], warnings }; }
   for (const f of files) if (FORBIDDEN.some(re => re.test(f))) problems.push(`forbidden path in tarball: ${f}`);
   if (!files.includes('.claude-plugin/plugin.json')) problems.push('.claude-plugin/plugin.json is not in the tarball');
+  const want = EXPECTED_BIN[dirName] || {};
+  if (JSON.stringify(pkg.bin || {}) !== JSON.stringify(want)) problems.push(`bin is ${JSON.stringify(pkg.bin || {})}, expected ${JSON.stringify(want)}`);
   const bins = typeof pkg.bin === 'string' ? { [dirName]: pkg.bin } : pkg.bin || {};
   for (const [cmd, target] of Object.entries(bins)) {
     const rel = path.posix.normalize(target);
