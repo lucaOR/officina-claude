@@ -13,6 +13,7 @@ per the design doc. Fields:
     text          str   the observation text
     artifact_refs list  free text: path:line / SHA / test-output path, etc.
     consumed      bool  false until mark_consumed() flips it
+    meta          dict  optional; present only when push() was given `meta`
 JSON-per-line is used (not pipe-delimited) because json.dumps escapes embedded newlines inside
 `text`/`artifact_refs`, so one JSON object is always exactly one physical line — no risk of a
 free-text field silently splitting a queue row across two lines. A line that does not parse as a
@@ -105,8 +106,9 @@ def _locked(lock_file: Path):
 
 
 def push(text: str, pusher: str | None = None, artifact_refs=None,
-          root: Path | str | None = None) -> str:
-    """Append one observation to the queue. Creates the queue file if missing. Returns the new id."""
+          root: Path | str | None = None, meta: dict | None = None) -> str:
+    """Append one observation to the queue. Creates the queue file if missing. Returns the new id.
+    `meta` (optional dict) is stored under record["meta"]; without it the key is absent."""
     root_dir = _resolve_root(root)
     queue_file = queue_file_path(root_dir)
     lock_file = lock_file_path(root_dir)
@@ -121,6 +123,8 @@ def push(text: str, pusher: str | None = None, artifact_refs=None,
         "artifact_refs": _normalize_artifact_refs(artifact_refs),
         "consumed": False,
     }
+    if meta is not None:
+        record["meta"] = meta
     line = (json.dumps(record, sort_keys=True) + "\n").encode("utf-8")
 
     with _locked(lock_file):

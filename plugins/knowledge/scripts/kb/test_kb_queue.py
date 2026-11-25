@@ -85,6 +85,19 @@ class PushTest(unittest.TestCase):
         self.assertEqual(parsed_ids, [id1, id2])
 
 
+class PushMetaTest(unittest.TestCase):
+    def test_push_meta_roundtrip(self):
+        root = make_repo()
+        kq.push("t", meta={"source": "auto", "theme": "x"}, root=root)
+        rec = kq.read_unconsumed(root)[0]
+        self.assertEqual(rec["meta"], {"source": "auto", "theme": "x"})
+
+    def test_push_without_meta_has_no_key(self):
+        root = make_repo()
+        kq.push("t", root=root)
+        self.assertNotIn("meta", kq.read_unconsumed(root)[0])
+
+
 class PushWithoutCommitTest(unittest.TestCase):
     """Spec Goal 2: a project without git, or a fresh repository with no commit yet, is a
     supported place to push from. There is no HEAD to record, so head_sha is empty."""
