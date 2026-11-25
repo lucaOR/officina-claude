@@ -1,13 +1,13 @@
 {
   "generated": "by tools/sync-diagram.mjs from plugins/diagrams/lib; do not edit; verify with node tools/sync-diagram.mjs --check",
-  "sha256": "9e57b07296fd5dd8fd43e9128dbbf432212a675b9cdcc4c9b11553cb71c95a59",
+  "sha256": "e0a16dba987ac9c2bf6970f699cb687449acccc865910cc1271eb46ca3cd5c61",
   "files": {
     "architecture.mjs": "da6c2efa89493c8a5b0a24ce64f95415ebc41622bf834c3fb038caf9be525343",
     "erd.mjs": "4a02c4a22c755fc3b3c600c3dea6f6864a1b7e6e2ed9e4e6965289b3d787feaf",
     "index.mjs": "ff2614a40d8284b96be64971759b7dbd77f97faa74e3ecb52c1fbfce62240015",
     "layered.mjs": "29ce7810635dec6046dd4db9f2aea39b65b6b0fcb445ab67b4bfc400d03ce3a4",
     "palette.mjs": "022dc52f4ff6c242d514d789629a12a79cc33cd976debc8a6a3e8b5123b0a401",
-    "rows.mjs": "28432c992ceb3a0edc8ef223c5c2bd9164b1f8555e626db7b29f85cb845eec69",
+    "rows.mjs": "0dc51882e732b99d5b8318742dc95b55bae89b6d5a6d2c6ad3fe2978ace33095",
     "sequence.mjs": "6dbdba57dcb9f3f618fe9f8a8161fd9ef6486c47f1575c585f91029372d1a288",
     "standalone.mjs": "b152bdabe858a9c3fc40b8c266750c0bf198131e402b42eb0ad96d1198e74317",
     "state.mjs": "bbc80e4e07c8255030b7667d5b8baf958ea36b25d9f4d1394fd3bb2f176ecfbe",

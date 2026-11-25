@@ -71,3 +71,9 @@ test('timeline: cell counts are checked', () => {
   assert.throws(bad([['2025', 'a', 'b', 'backend', 'x']]), /^Error: Row 1: a timeline event row has at most 4 cells/);
 });
 test('timeline: needs an event', () => assert.throws(bad([['track a', 'A']]), /at least one event/));
+
+test('timeline: a year below 100 is not read as 19xx', () => {
+  const r = render({ type: 'timeline', title: 'T', rows: [['1979', 'Late'], ['0079', 'Early']] });
+  const x = id => r.boxes.find(b => b.id === id).x;
+  assert.ok(x('e2') < x('e1'));
+});

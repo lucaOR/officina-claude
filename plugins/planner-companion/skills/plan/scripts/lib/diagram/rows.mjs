@@ -282,7 +282,8 @@ const DATE = /^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?$/;
 function parseDate(text, i) {
   const m = DATE.exec(text);
   const [y, mo, d] = m ? [+m[1], m[2] ? +m[2] : 1, m[3] ? +m[3] : 1] : [];
-  const day = m ? new Date(Date.UTC(y, mo - 1, d)) : null;
+  const day = m ? new Date(0) : null;
+  day?.setUTCFullYear(y, mo - 1, d); // not Date.UTC, which reads the years 0 to 99 as 1900 to 1999
   if (!day || mo < 1 || mo > 12 || day.getUTCMonth() !== mo - 1 || day.getUTCDate() !== d) {
     fail(i, `date "${text}" is not YYYY, YYYY-MM or YYYY-MM-DD`);
   }
