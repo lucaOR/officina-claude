@@ -186,6 +186,8 @@ def load_config(root: Path) -> dict:
                 problems.append("scribe is not a mapping")
                 continue
             for k, v in value.items():
+                if k == "capture" and v is False:
+                    v = "off"  # YAML 1.1 reads an unquoted `off` as boolean False
                 if k not in _VALID_SCRIBE:
                     problems.append(f"unknown key scribe.{k}")
                 elif _VALID_SCRIBE[k](v):

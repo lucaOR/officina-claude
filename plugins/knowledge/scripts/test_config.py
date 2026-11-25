@@ -57,6 +57,14 @@ class ConfigCase(unittest.TestCase):
 
 
 class TestLoadConfig(ConfigCase):
+    def test_unquoted_capture_off_is_off_without_warning(self):
+        self.write(".claude/knowledge/config.yaml", "scribe:\n  capture: off\n")
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            cfg = lib.load_config(self.root)
+        self.assertEqual(cfg["scribe"]["capture"], "off")
+        self.assertEqual(err.getvalue(), "")
+
     def test_absent_config_gives_defaults(self):
         cfg, err = self.load()
         self.assertEqual(cfg, lib.CONFIG_DEFAULTS)
