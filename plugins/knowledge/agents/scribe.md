@@ -27,9 +27,10 @@ start a second run while one is in progress.
 ## Auto-captured candidates
 
 Queue rows whose `meta.source` is `auto` (written by the SessionEnd capture hook, with a `quote`,
-a `theme` and a `kind` in `meta`) are candidates, not rules. Score each one with
-`capture.confidence.score(row, rows, ledger_hits)` from `scripts/capture/confidence.py`, passing
-the full unconsumed row list as `rows` and `0` as `ledger_hits` when you have no hit count.
+a `theme` and a `kind` in `meta`) are candidates, not rules. The score is always computed by code:
+run `scripts/capture/confidence.py --root {root}` with the exact call given in step 3 of the kb skill's `run`, which prints one
+JSON line per unconsumed auto row with its `score` and `listed` flag (recurrence is counted over
+the whole queue, ledger hits are fixed at `0`). Use those numbers as printed.
 
 - A row with a score of at least 0.35 (`LISTED_MIN`) goes into the one plan under the heading
   "Auto-captured candidates", with its quote and its score shown.

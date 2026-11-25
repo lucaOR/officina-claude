@@ -101,7 +101,9 @@ Everything else, the lease and the queue included, works the same.
    the user kept as-is are already filtered out while the rules behind them are unchanged.
 3. Present **one** combined ROUTE/MEMORY/DROP/ASK plan (queue rows + folded-in violations
    together; `source=auto` rows go under "Auto-captured candidates" per the scribe agent: score
-   at least 0.35 listed with quote and score, the rest counted as held), per `knowledge:knowledge-capture`'s iron law, followed by a **Health** section that
+   at least 0.35 listed with quote and score, the rest counted as held; get the scores by running
+   `python3 "${CLAUDE_SKILL_DIR}/../../scripts/capture/confidence.py" --root {root}`, which prints
+   one JSON line per auto row with `score` and `listed`, and never compute a score by hand), per `knowledge:knowledge-capture`'s iron law, followed by a **Health** section that
    lists the `plan` findings grouped by category and triaged per "Health triage" below. Read-only —
    nothing written to the KB, the queue, or git yet.
 4. User dispositions the plan, per-item, not all-or-nothing. ROUTE and MEMORY items proceed
