@@ -65,9 +65,17 @@ the user correct it. `/session:handoff boundary` and `/session:handoff mid` forc
    `.claude/` is versioned. The two Format sections below are that file's
    content; the pointer is not part of it.
 
-5. Put **everything you have to say above the pointer**: the one mode line, any
-   session-id caveat from step 2, and the one line telling the user to copy the
-   pointer, run `/clear`, and paste. Then emit the pointer as the last line of
+5. Arm the auto-clear first. Run
+   `python3 "${CLAUDE_PLUGIN_ROOT}/skills/handoff/scripts/arm_autoclear.py" <session-id> "<pointer>"`
+   with the bare session id from step 2 and the exact pointer line you are about
+   to emit. It writes `~/.claude/handoff/<session-id>.autoclear`, which the
+   session mod reads to run `/clear` and submit the pointer itself. If it exits
+   non-zero, skip it silently: the manual pointer below still works.
+
+   Then put **everything you have to say above the pointer**: the one mode line,
+   any session-id caveat from step 2, one line saying the session clears itself
+   when mods are enabled and that the pointer is the manual fallback (copy it,
+   run `/clear`, paste). Then emit the pointer as the last line of
    the message, alone, with nothing after it — no fence, no backticks, no
    trailing punctuation, so that a single-line selection copies exactly it:
 
