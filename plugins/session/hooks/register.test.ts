@@ -12,7 +12,6 @@ function seed(on: any, opts: { flagAge?: number; draft?: string; store?: Record<
   const submitted: string[] = []
   const toasts: string[] = []
   on('turn.complete', () => ({ text: '' }))
-  on('classic.SessionStart', () => ({}))
   on('session.id', () => ({ value: SID }))
   on('session.cwd', () => ({ value: '/proj' }))
   on('env.get', () => ({ value: '/home/u' }))
@@ -33,8 +32,7 @@ test('fresh flag clears once and submits the pointer once', async ($, on) => {
   const s = seed(on)
   await $.turn.complete({ answer: 'ok', durationMs: 1, isAborted: false, turnId: 't', reason: 'answer' })
   expect(s.ran).toEqual(['clear'])
-  await $.classic.SessionStart({ source: 'clear' })
-  await $.classic.SessionStart({ source: 'clear' })
+  for (let i = 0; i < 20; i++) await Promise.resolve()
   expect(s.submitted).toEqual([PTR])
 })
 

@@ -14,14 +14,12 @@ function parseFlag(text: string, sessionId: string): Flag | null {
   return null
 }
 
-// Held in the module, not in $.store: two sessions clearing at once must not
-// pick up each other's pointer.
-let held: string | undefined
-
-async function resume($: any) {
-  if (held === undefined) return
-  const text = held
-  held = undefined
+// Runs detached: /clear is queued until the session is idle, and it resolves
+// once the new session is in place, so the pointer goes in right after it.
+// A classic.SessionStart hook is no use here: an organization's managed hook can
+// cut it out of the chain.
+async function clearThenResume($: any, text: string) {
+  await $.command.run({ command: 'clear' })
   await $.prompt.submit({ text })
 }
 
@@ -57,22 +55,10 @@ export const register: Register = (on, options) => {
       return next(e)
     }
 
-    held = flag!.pointer
     await $.store.set(key, [...history, nowSec])
     await $.fs.write(path, CONSUMED)
     const result = await next(e)
-    void $.command.run({ command: 'clear' })
+    void clearThenResume($, flag!.pointer)
     return result
-  })
-
-  // /clear raises session.end, then classic SessionStart (source "clear"); the
-  // engine hook session.start is not documented to follow it, so listen to both.
-  on('classic.SessionStart', async ($, e, next) => {
-    if (e.source === 'clear') void resume($)
-    return next(e)
-  })
-  on('session.start', async ($, e, next) => {
-    void resume($)
-    return next(e)
   })
 }
