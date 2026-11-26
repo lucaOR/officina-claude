@@ -1,0 +1,10 @@
+{"id":"q1","at":"2026-11-26T07:29:19.209Z","kind":"comment","target":"node:flow.m2","text":"What does it mean \"end turn\"?","thread":"t1"}
+{"id":"q2","at":"2026-11-26T07:32:57.998Z","kind":"comment","target":"node:flow.m4","text":"Is there one mod per session or just one to which multiple sessions converge?","thread":"t2"}
+{"id":"q3","at":"2026-11-26T07:33:34.498Z","kind":"comment","target":"node:flow.m4","text":"What happens if more than one session is running and at least two of them create the flag file?","thread":"t2"}
+{"id":"q4","at":"2026-11-26T07:34:28.740Z","kind":"comment","target":"node:flow.mod","text":"What is a \"mod\"? Explain it simple terms","thread":"t3"}
+{"id":"q5","at":"2026-11-26T07:35:29.796Z","kind":"comment","target":"node:domain-autoclear.skip","text":"What is a toast?","thread":"t4"}
+{"id":"q6","at":"2026-11-26T07:36:02.985Z","kind":"pick","target":"D4","option":"a","change":"c1"}
+{"id":"q7","at":"2026-11-26T07:36:47.512Z","kind":"pick","target":"D5","option":"a","change":"c2"}
+{"id":"q8","at":"2026-11-26T07:37:21.423Z","kind":"pick","target":"D6","option":"a","change":"c3"}
+{"id":"q9","at":"2026-11-26T07:37:27.785Z","kind":"pick","target":"D7","option":"a","change":"c4"}
+{"id":"q10","at":"2026-11-26T07:39:05.568Z","kind":"update","wrote":["plan.json","plan.md"]}

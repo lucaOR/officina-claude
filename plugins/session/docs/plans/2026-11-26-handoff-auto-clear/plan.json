@@ -1,0 +1,839 @@
+{
+  "schema": 1,
+  "slug": "handoff-auto-clear",
+  "title": "Handoff auto-clear mod",
+  "counters": {
+    "D": 7,
+    "T": 5,
+    "S": 7
+  },
+  "domains": [
+    {
+      "id": "autoclear",
+      "title": "How does a finished handoff turn into a cleared, resumed session?",
+      "checks": [
+        "Every skip path leaves the printed pointer usable.",
+        "The pointer is submitted exactly once per clear.",
+        "Hooks on SessionStart:clear still run."
+      ],
+      "diagram": {
+        "type": "workflow",
+        "title": "Turn end decision",
+        "rows": [
+          [
+            "lane chk",
+            "Checks"
+          ],
+          [
+            "end",
+            "turn.complete",
+            "frontend",
+            "chk"
+          ],
+          [
+            "flag",
+            "Fresh flag?",
+            "security",
+            "chk"
+          ],
+          [
+            "ok",
+            "Not aborted, no draft?",
+            "security",
+            "chk"
+          ],
+          [
+            "age",
+            "Guard passes?",
+            "security",
+            "chk"
+          ],
+          [
+            "clr",
+            "Run /clear",
+            "focus",
+            "chk"
+          ],
+          [
+            "skip",
+            "Toast, keep manual pointer",
+            "backend",
+            "chk"
+          ],
+          [
+            "end > flag"
+          ],
+          [
+            "flag > ok",
+            "yes"
+          ],
+          [
+            "flag > skip",
+            "no",
+            "dashed"
+          ],
+          [
+            "ok > age",
+            "yes"
+          ],
+          [
+            "ok > skip",
+            "no",
+            "dashed"
+          ],
+          [
+            "age > clr",
+            "yes",
+            "emphasis"
+          ],
+          [
+            "age > skip",
+            "no",
+            "dashed"
+          ]
+        ]
+      }
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "domain": "autoclear",
+      "title": "How does the mod learn a handoff just finished?",
+      "state": "settled",
+      "options": [
+        {
+          "key": "a",
+          "label": "Flag file written by the skill",
+          "why": "Explicit signal; a quoted pointer cannot trigger a clear. Costs one extra skill step."
+        },
+        {
+          "key": "b",
+          "label": "Scan the final reply for the pointer",
+          "why": "No skill change, but a pasted or discussed pointer could clear the session unattended."
+        },
+        {
+          "key": "c",
+          "label": "tmux send-keys watcher",
+          "why": "Works without mods but needs tmux, idle detection and pane discovery."
+        }
+      ],
+      "recommended": "a",
+      "pick": "a",
+      "whyPick": "User chose A: explicit signal, no false clears.",
+      "slots": {
+        "scale": "One small file per handoff under ~/.claude/handoff/; stale ones are deleted after 30 minutes.",
+        "dataFrom": "Written by the handoff skill from the collector's session id and the pointer line."
+      },
+      "more": {
+        "why": "A wrong clear unattended costs the live context.",
+        "touches": [
+          "plugins/session/skills/handoff/SKILL.md:55"
+        ],
+        "related": []
+      },
+      "nodes": [
+        "skill",
+        "m1"
+      ]
+    },
+    {
+      "id": "D2",
+      "domain": "autoclear",
+      "title": "Is auto-clear opt-in or always on?",
+      "state": "settled",
+      "options": [
+        {
+          "key": "a",
+          "label": "Always after /handoff",
+          "why": "Unattended continuation is the point; no extra argument to remember."
+        },
+        {
+          "key": "b",
+          "label": "Opt-in per invocation",
+          "why": "Safer, but the session sits idle whenever the user forgets."
+        }
+      ],
+      "recommended": "b",
+      "pick": "a",
+      "whyPick": "User: always clear automatically; the goal is not to wait at the computer.",
+      "slots": {
+        "scale": "Every handoff clears; the guards in D3 bound a runaway chain.",
+        "dataFrom": "No input; behaviour is fixed, only the guard gap is configurable."
+      },
+      "more": {
+        "why": "Unattended resume only helps if it needs no per-run choice.",
+        "touches": [],
+        "related": [
+          "D3"
+        ]
+      },
+      "nodes": [
+        "clr"
+      ]
+    },
+    {
+      "id": "D3",
+      "domain": "autoclear",
+      "title": "What stops a runaway handoff loop?",
+      "state": "settled",
+      "options": [
+        {
+          "key": "a",
+          "label": "3 clears per hour",
+          "why": "Simple but blocks a genuinely intensive session."
+        },
+        {
+          "key": "b",
+          "label": "Minimum 10 min since last auto-clear, 12 per hour backstop",
+          "why": "A loop is a run of short cycles; healthy sessions live 20+ minutes. Gap is a plugin option, 0 disables."
+        }
+      ],
+      "recommended": "b",
+      "pick": "b",
+      "whyPick": "User agreed 3/hour is too stringent for heavy sessions; age-based guard fits.",
+      "slots": {
+        "scale": "When refused, the mod toasts the reason and the printed pointer is the manual fallback. Two sessions in one project share the guard on purpose: a loop in either is a loop.",
+        "dataFrom": "Last-clear timestamps in $.store keyed per project directory (the store file is shared by all sessions); gap from userConfig minGapMinutes."
+      },
+      "more": {
+        "why": "The depth-8 'is Done met' check in the note is model-side only.",
+        "touches": [
+          "plugins/session/skills/handoff/SKILL.md:150"
+        ],
+        "related": [
+          "D2"
+        ]
+      },
+      "nodes": [
+        "age"
+      ]
+    },
+    {
+      "id": "D4",
+      "domain": "autoclear",
+      "title": "Where do the mod files live next to the existing command hooks?",
+      "state": "settled",
+      "options": [
+        {
+          "key": "a",
+          "label": "Add a modules entry to the existing hooks/hooks.json",
+          "why": "One manifest, nothing new to install. Needs claude plugin validate to accept hooks and modules together."
+        },
+        {
+          "key": "b",
+          "label": "Second hooks file named in plugin.json",
+          "why": "Keeps the two shapes apart, but depends on plugin.json supporting a second hooks path."
+        },
+        {
+          "key": "c",
+          "label": "Separate plugin session-autoclear",
+          "why": "Always valid and optional to install, but a second install and a skill that depends on a sibling plugin."
+        }
+      ],
+      "recommended": "a",
+      "slots": {
+        "scale": "Affects install only; no runtime cost.",
+        "dataFrom": "claude plugin validate output on a scratch copy decides which of a/b is legal."
+      },
+      "more": {
+        "why": "The command-hook file has shape {hooks:{...}} and the mod file {modules:[...]}.",
+        "touches": [
+          "plugins/session/hooks/hooks.json:1",
+          "plugins/session/.claude-plugin/plugin.json:1"
+        ],
+        "related": [
+          "D1"
+        ]
+      },
+      "nodes": [
+        "mod"
+      ],
+      "pick": "a",
+      "whyPick": "One manifest, nothing new to install. Needs claude plugin validate to accept hooks and modules together."
+    },
+    {
+      "id": "D5",
+      "domain": "autoclear",
+      "title": "How does the pointer reach the new session after the clear?",
+      "state": "settled",
+      "options": [
+        {
+          "key": "a",
+          "label": "Hold it in the mod instance, submit from session.start after the clear",
+          "why": "Each Claude Code process has its own instance, so two sessions cannot collide. The instance survives /clear (auto-clear-context relies on this). Lost only if the process dies mid-clear."
+        },
+        {
+          "key": "b",
+          "label": "Park it in the shared store",
+          "why": "Survives a restart, but session.start carries no id of the previous session, so concurrent clears in one project cannot tell whose pointer is whose."
+        },
+        {
+          "key": "c",
+          "label": "Await the clear, then submit in the same hook",
+          "why": "Fewest parts, but depends on the hook surviving the clear."
+        }
+      ],
+      "recommended": "a",
+      "slots": {
+        "scale": "One variable per instance, cleared after submit; a crash between clear and submit loses it and the printed pointer is the fallback.",
+        "dataFrom": "Pointer read from the flag file before the clear and held in the instance."
+      },
+      "more": {
+        "why": "session.start has no previous-session id and no source field in 2.1.332, so the new session cannot look anything up by the old id.",
+        "touches": [
+          "plugins/session/hooks/pivot-gate.py:1"
+        ],
+        "related": [
+          "D1"
+        ]
+      },
+      "nodes": [
+        "m10",
+        "m11"
+      ],
+      "pick": "a",
+      "whyPick": "Each Claude Code process has its own instance, so two sessions cannot collide. The instance survives /clear (auto-clear-context relies on this). Lost only if the process dies mid-clear."
+    },
+    {
+      "id": "D6",
+      "domain": "autoclear",
+      "title": "Who writes the flag file?",
+      "state": "settled",
+      "options": [
+        {
+          "key": "a",
+          "label": "New script arm_autoclear.py called from skill step 5",
+          "why": "Deterministic and unit-testable like collect.py; the model cannot get the format wrong."
+        },
+        {
+          "key": "b",
+          "label": "SKILL.md tells the model to Write the file",
+          "why": "No new script, but format and path depend on the model each time."
+        }
+      ],
+      "recommended": "a",
+      "slots": {
+        "scale": "Tiny script, runs once per handoff.",
+        "dataFrom": "Arguments: session id and pointer line, both already known from the collector."
+      },
+      "more": {
+        "why": "Same reason the collector names the note path instead of the model.",
+        "touches": [
+          "plugins/session/skills/handoff/scripts/collect.py:1"
+        ],
+        "related": [
+          "D1"
+        ]
+      },
+      "nodes": [
+        "skill"
+      ],
+      "pick": "a",
+      "whyPick": "Deterministic and unit-testable like collect.py; the model cannot get the format wrong."
+    },
+    {
+      "id": "D7",
+      "domain": "autoclear",
+      "title": "When a check fails, drop the flag or retry later?",
+      "state": "settled",
+      "options": [
+        {
+          "key": "a",
+          "label": "Drop the flag, toast the reason, user clears by hand",
+          "why": "Simple; a draft or interrupt means the user is back, so they drive."
+        },
+        {
+          "key": "b",
+          "label": "Keep the flag and retry at the next turn.complete until it expires",
+          "why": "More automatic, but it can clear a session the user has since resumed working in."
+        }
+      ],
+      "recommended": "a",
+      "slots": {
+        "scale": "No timers or retries to leak.",
+        "dataFrom": "turn.complete reason ('aborted' marks an interrupt) and $.prompt.read() for the draft; both confirmed in the 2.1.332 types."
+      },
+      "more": {
+        "why": "An interrupt or draft is the signal that a person is present.",
+        "touches": [],
+        "related": [
+          "D2"
+        ]
+      },
+      "nodes": [
+        "skip",
+        "ok"
+      ],
+      "pick": "a",
+      "whyPick": "Simple; a draft or interrupt means the user is back, so they drive."
+    }
+  ],
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Check that hooks and modules can share hooks/hooks.json",
+      "decisions": [
+        "D4"
+      ],
+      "after": [],
+      "files": {
+        "create": [],
+        "modify": [
+          "plugins/session/hooks/hooks.json (scratch copy first)"
+        ],
+        "test": []
+      },
+      "interfaces": {
+        "consumes": "claude plugin validate; existing hooks/hooks.json with a top-level hooks key",
+        "produces": "A yes/no on D4 option a; if no, the plan returns to D4 (fallback option c, separate plugin)"
+      },
+      "steps": [
+        {
+          "title": "Copy the plugin to a scratch folder",
+          "body": "cp -r plugins/session into the scratchpad; work only on the copy.",
+          "run": "cp -r plugins/session \"$SCRATCH/session-copy\"",
+          "expect": "PASS"
+        },
+        {
+          "title": "Add an empty modules entry and a stub module",
+          "body": "In the copy, add \"modules\": [\"./register.tsx\"] next to the existing hooks key and create hooks/register.tsx exporting register = () => {}.",
+          "code": {
+            "lang": "json",
+            "text": "{ \"modules\": [\"./register.tsx\"], \"hooks\": { \"SessionStart\": [] } }"
+          }
+        },
+        {
+          "title": "Validate the copy",
+          "body": "The command must report no error about the combined manifest. If it refuses, stop and reopen D4.",
+          "run": "claude plugin validate \"$SCRATCH/session-copy\"",
+          "expect": "PASS"
+        }
+      ],
+      "commit": "chore(session): record that hooks.json can carry modules (no repo change if scratch only)"
+    },
+    {
+      "id": "T2",
+      "title": "Flag file writer arm_autoclear.py and the handoff skill step",
+      "decisions": [
+        "D1",
+        "D6"
+      ],
+      "after": [],
+      "files": {
+        "create": [
+          "plugins/session/skills/handoff/scripts/arm_autoclear.py",
+          "plugins/session/skills/handoff/scripts/test_arm_autoclear.py"
+        ],
+        "modify": [
+          "plugins/session/skills/handoff/SKILL.md"
+        ],
+        "test": [
+          "plugins/session/skills/handoff/scripts/test_arm_autoclear.py"
+        ]
+      },
+      "interfaces": {
+        "consumes": "lineage.SESSION_ID_RE; the pointer line the skill prints",
+        "produces": "arm(session_id: str, pointer: str, home: Path | None = None, now: int | None = None) -> Path writes <home>/.claude/handoff/<session_id>.autoclear as JSON {session_id, pointer, created_at}; CLI: arm_autoclear.py <session_id> <pointer> prints the path"
+      },
+      "steps": [
+        {
+          "title": "Write the failing test",
+          "body": "Plain unittest, no pytest on this host.",
+          "code": {
+            "lang": "python",
+            "text": "class ArmTest(unittest.TestCase):\n    def test_writes_flag_json(self):\n        ptr = \"read /n.md — HANDOFF v1 mode=mid parent=s\"\n        with tempfile.TemporaryDirectory() as home:\n            p = arm_autoclear.arm(\"s\", ptr, home=Path(home), now=1000)\n            self.assertEqual(p, Path(home) / \".claude\" / \"handoff\" / \"s.autoclear\")\n            self.assertEqual(json.loads(p.read_text()), {\"session_id\": \"s\", \"pointer\": ptr, \"created_at\": 1000})\n\n    def test_rejects_bad_session_id(self):\n        with self.assertRaises(ValueError):\n            arm_autoclear.arm(\"../x\", \"read /n.md — HANDOFF v1 mode=mid parent=s\", home=Path(\"/tmp\"), now=1)\n\n    def test_rejects_pointer_without_sentinel(self):\n        with self.assertRaises(ValueError):\n            arm_autoclear.arm(\"s\", \"hello\", home=Path(\"/tmp\"), now=1)"
+          }
+        },
+        {
+          "title": "Run it",
+          "run": "python3 -m unittest plugins/session/skills/handoff/scripts/test_arm_autoclear.py",
+          "expect": "FAIL"
+        },
+        {
+          "title": "Implement arm()",
+          "body": "In arm_autoclear.py: validate session_id with lineage.SESSION_ID_RE and require 'HANDOFF v1' in the pointer, else ValueError; write the JSON atomically (temp file then rename) under ~/.claude/handoff/ created with parents."
+        },
+        {
+          "title": "Add the skill step",
+          "body": "In SKILL.md step 5, before emitting the pointer, run arm_autoclear.py with the session id and the pointer; say in one line above the pointer that the session will clear itself when mods are on and that the pointer is the manual fallback."
+        },
+        {
+          "title": "Run it again",
+          "run": "python3 -m unittest plugins/session/skills/handoff/scripts/test_arm_autoclear.py",
+          "expect": "PASS"
+        }
+      ],
+      "commit": "feat(session): arm_autoclear.py writes the auto-clear flag at handoff"
+    },
+    {
+      "id": "T3",
+      "title": "Pure decision function autoclear.ts",
+      "decisions": [
+        "D2",
+        "D3",
+        "D7"
+      ],
+      "after": [
+        "T1"
+      ],
+      "files": {
+        "create": [
+          "plugins/session/hooks/autoclear.ts",
+          "plugins/session/hooks/autoclear.test.ts"
+        ],
+        "modify": [],
+        "test": [
+          "plugins/session/hooks/autoclear.test.ts"
+        ]
+      },
+      "interfaces": {
+        "consumes": "Nothing from the engine; plain values only",
+        "produces": "decide(i: {flag: Flag | null; nowSec: number; reason: 'answer'|'aborted'|'refusal'|'error'; draft: string; lastClearSec: number | undefined; clearsLastHour: number; minGapMinutes: number}): {action: 'clear'} | {action: 'skip'; reason: string; dropFlag: boolean; notify: boolean}. Constants FLAG_TTL_SEC = 1800, BACKSTOP_PER_HOUR = 12"
+      },
+      "steps": [
+        {
+          "title": "Write the failing tests",
+          "body": "Base input: flag {session_id:'s', pointer:'read /n.md — HANDOFF v1 mode=mid parent=s', created_at:1000}, nowSec 1100, reason 'answer', draft '', lastClearSec undefined, clearsLastHour 0, minGapMinutes 10.",
+          "code": {
+            "lang": "typescript",
+            "text": "test('clears when every check passes', () => expect(decide(base)).toEqual({ action: 'clear' }))\ntest('no flag is a silent skip', () => expect(decide({ ...base, flag: null })).toEqual({ action: 'skip', reason: 'no-flag', dropFlag: false, notify: false }))\ntest('flag older than 1800 s is dropped', () => expect(decide({ ...base, nowSec: 2801 })).toEqual({ action: 'skip', reason: 'stale-flag', dropFlag: true, notify: true }))\ntest('flag exactly 1800 s old still fires', () => expect(decide({ ...base, nowSec: 2800 })).toEqual({ action: 'clear' }))\ntest('aborted turn drops the flag', () => expect(decide({ ...base, reason: 'aborted' })).toEqual({ action: 'skip', reason: 'interrupted', dropFlag: true, notify: true }))\ntest('a draft drops the flag', () => expect(decide({ ...base, draft: 'abc' })).toEqual({ action: 'skip', reason: 'draft', dropFlag: true, notify: true }))\ntest('599 s since last clear refuses', () => expect(decide({ ...base, lastClearSec: 501 })).toEqual({ action: 'skip', reason: 'min-gap', dropFlag: true, notify: true }))\ntest('600 s since last clear passes', () => expect(decide({ ...base, lastClearSec: 500 })).toEqual({ action: 'clear' }))\ntest('12 clears in the hour refuses', () => expect(decide({ ...base, clearsLastHour: 12 })).toEqual({ action: 'skip', reason: 'backstop', dropFlag: true, notify: true }))\ntest('minGapMinutes 0 disables the gap but not the backstop', () => { expect(decide({ ...base, lastClearSec: 1099, minGapMinutes: 0 })).toEqual({ action: 'clear' }); expect(decide({ ...base, clearsLastHour: 12, minGapMinutes: 0 }).action).toBe('skip') })"
+          }
+        },
+        {
+          "title": "Run it",
+          "run": "claude plugin test plugins/session",
+          "expect": "FAIL"
+        },
+        {
+          "title": "Implement decide()",
+          "body": "Check in this order: no flag, stale (age > FLAG_TTL_SEC), reason !== 'answer', draft !== '', gap (only when minGapMinutes > 0 and lastClearSec defined and nowSec - lastClearSec < minGapMinutes*60), backstop. Export Flag type and both constants."
+        },
+        {
+          "title": "Run it again",
+          "run": "claude plugin test plugins/session",
+          "expect": "PASS"
+        }
+      ],
+      "commit": "feat(session): pure auto-clear decision with age guard and backstop"
+    },
+    {
+      "id": "T4",
+      "title": "Wire the mod: turn.complete, clear, resume, toast, option",
+      "decisions": [
+        "D1",
+        "D2",
+        "D4",
+        "D5"
+      ],
+      "after": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "files": {
+        "create": [
+          "plugins/session/hooks/register.tsx",
+          "plugins/session/hooks/register.test.ts"
+        ],
+        "modify": [
+          "plugins/session/hooks/hooks.json",
+          "plugins/session/.claude-plugin/plugin.json",
+          "plugins/session/README.md"
+        ],
+        "test": [
+          "plugins/session/hooks/register.test.ts"
+        ]
+      },
+      "interfaces": {
+        "consumes": "decide() from T3; flag JSON from T2; $.command.run, $.prompt.submit, $.prompt.read, $.store, $.fs, $.ui.toast, $.session.id() if present (check types)",
+        "produces": "register(on, options) with options.minGapMinutes (userConfig, default 10, 0 disables); store key clears:<project dir> holding an array of epoch seconds"
+      },
+      "steps": [
+        {
+          "title": "Write the failing tests",
+          "body": "Using the engine kit: a fresh flag for the current session plus reason 'answer' leads to one /clear; after session.start the pointer is submitted exactly once; with no flag nothing runs; a skip shows a toast and deletes the flag; a second arm inside 10 minutes is refused.",
+          "code": {
+            "lang": "typescript",
+            "text": "test('fresh flag clears once and submits the pointer once', async () => { /* seed flag file, raise turn.complete, assert one command.run {command:'clear'}, raise session.start, assert one prompt.submit with the flag pointer */ })\ntest('no flag does nothing', async () => { /* raise turn.complete, assert no command.run and no toast */ })\ntest('draft skips, toasts the reason and deletes the flag', async () => { /* prompt.read returns draft 'x' */ })\ntest('second clear inside the gap is refused', async () => { /* store holds a clear 300 s ago */ })"
+          }
+        },
+        {
+          "title": "Run it",
+          "run": "claude plugin test plugins/session",
+          "expect": "FAIL"
+        },
+        {
+          "title": "Implement register()",
+          "body": "On turn.complete: read <session-id>.autoclear (ignore other sessions' flags), read the draft with $.prompt.read(), the per-project clear history from $.store, call decide(). On clear: hold the pointer in a module variable, record the timestamp, delete the flag, run $.command.run({command:'clear'}). On session.start: if a held pointer exists, submit it once and drop it. On a skip with notify: $.ui.toast('auto-clear skipped: <reason>') and delete the flag when dropFlag."
+        },
+        {
+          "title": "Register the module and option",
+          "body": "Add the modules entry to hooks/hooks.json (as validated in T1), add userConfig minGapMinutes to plugin.json, bump the version, add a README line on what the mod does and that mods must be allowed."
+        },
+        {
+          "title": "Run it again",
+          "run": "claude plugin test plugins/session && claude plugin validate plugins/session",
+          "expect": "PASS"
+        }
+      ],
+      "commit": "feat(session): auto-clear mod clears and resumes after a handoff"
+    },
+    {
+      "id": "T5",
+      "title": "Live check in a scratch session",
+      "decisions": [
+        "D5"
+      ],
+      "after": [
+        "T4"
+      ],
+      "files": {
+        "create": [],
+        "modify": [],
+        "test": []
+      },
+      "interfaces": {
+        "consumes": "The installed mod from T4, run with claude --plugin-dir plugins/session in a scratch project",
+        "produces": "A written result for each scenario S1 to S7; any failure reopens the owning decision"
+      },
+      "steps": [
+        {
+          "title": "Run S1 and S6",
+          "body": "In a scratch project, do some work, run /session:handoff, watch the clear and the submitted pointer. Confirm the instance survives /clear (the pointer is submitted by the same instance), pivot-gate and inherit-handoff-title fire, and the metrics row has the parent link. Then repeat with two terminals at once and confirm each resumes its own pointer and the shared store file is not corrupted.",
+          "run": "claude --plugin-dir plugins/session",
+          "expect": "PASS"
+        },
+        {
+          "title": "Run S2 to S5 and S7",
+          "body": "Answer an ordinary question (nothing happens); wait 31 minutes or edit created_at (flag dropped); type a draft before the turn ends (toast, no clear); run a second handoff within 10 minutes (refused); start with mods off (printed pointer only)."
+        }
+      ],
+      "commit": "chore(session): record the live auto-clear check"
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "S1",
+      "domain": "autoclear",
+      "title": "Handoff clears and resumes",
+      "expected": "After the handoff turn the session runs /clear and the pointer is submitted once in the new session.",
+      "tasks": [
+        "T2",
+        "T4",
+        "T5"
+      ]
+    },
+    {
+      "id": "S2",
+      "domain": "autoclear",
+      "title": "Ordinary answer",
+      "expected": "No flag means no clear, no toast, no cost.",
+      "tasks": [
+        "T3",
+        "T4"
+      ]
+    },
+    {
+      "id": "S3",
+      "domain": "autoclear",
+      "title": "Stale flag",
+      "expected": "A flag older than 30 minutes is deleted and never fires.",
+      "tasks": [
+        "T3"
+      ]
+    },
+    {
+      "id": "S4",
+      "domain": "autoclear",
+      "title": "Draft or interrupt",
+      "expected": "The flag is dropped, a toast says why, the printed pointer still works.",
+      "tasks": [
+        "T3",
+        "T4"
+      ]
+    },
+    {
+      "id": "S5",
+      "domain": "autoclear",
+      "title": "Second handoff within 10 minutes",
+      "expected": "The clear is refused with a toast; the manual pointer remains.",
+      "tasks": [
+        "T3",
+        "T4",
+        "T5"
+      ]
+    },
+    {
+      "id": "S6",
+      "domain": "autoclear",
+      "title": "Two sessions at once",
+      "expected": "Each session clears and resumes its own pointer; the age guard is per project.",
+      "tasks": [
+        "T4",
+        "T5"
+      ]
+    },
+    {
+      "id": "S7",
+      "domain": "autoclear",
+      "title": "No mod support",
+      "expected": "Behaviour is today's: pointer printed, user clears by hand.",
+      "tasks": [
+        "T2",
+        "T5"
+      ]
+    }
+  ],
+  "goal": "After /session:handoff writes its note, the session clears itself and the successor starts from the pointer with nobody at the keyboard.",
+  "architecture": "A hooks module (mod) in the session plugin listens for turn.complete. The handoff skill arms it with a per-session flag file holding the pointer; the mod runs /clear, then submits the pointer in the new session, behind a minimum-age guard.",
+  "techStack": "Claude Code 2.1.332 mod API (TypeScript hooks module, $.command.run, $.prompt.submit, $.store), Python 3 for the skill-side script and tests, claude plugin test for the mod.",
+  "spec": "docs/superpowers/specs/2026-11-26-handoff-auto-clear-design.md",
+  "summary": [
+    "The handoff skill drops a flag file; the mod sees it at turn end.",
+    "The mod clears the session, then submits the pointer so work continues unattended.",
+    "A minimum age between auto-clears stops a runaway handoff loop."
+  ],
+  "checkFirst": [
+    "D4",
+    "D5"
+  ],
+  "constraints": [
+    "Without mod support the skill behaves exactly as today: the pointer is always printed.",
+    "The submitted pointer keeps the HANDOFF v1 sentinel so record-session-metrics.js still links parent and child.",
+    "No auto-clear fires mid-turn, after a user interrupt, over a draft, or from a flag older than 30 minutes.",
+    "Existing SessionStart:clear hooks (pivot-gate, inherit-handoff-title) must still fire on the auto clear.",
+    "The age guard is keyed per project; the pointer lives in the mod instance, never in the shared store."
+  ],
+  "flow": {
+    "title": "Handoff to resumed session",
+    "rows": [
+      [
+        "actor skill",
+        "handoff skill",
+        "backend"
+      ],
+      [
+        "actor mod",
+        "auto-clear mod",
+        "focus"
+      ],
+      [
+        "actor cc",
+        "Claude Code",
+        "frontend"
+      ],
+      [
+        "phase",
+        "Arm"
+      ],
+      [
+        "skill",
+        "skill",
+        "write note and flag file"
+      ],
+      [
+        "skill",
+        "cc",
+        "print pointer, end turn",
+        "return"
+      ],
+      [
+        "phase",
+        "Clear"
+      ],
+      [
+        "cc",
+        "mod",
+        "turn.complete"
+      ],
+      [
+        "mod",
+        "mod",
+        "check flag, guards, draft"
+      ],
+      [
+        "mod",
+        "cc",
+        "/clear",
+        "emphasis"
+      ],
+      [
+        "phase",
+        "Resume"
+      ],
+      [
+        "cc",
+        "mod",
+        "session.start (clear)"
+      ],
+      [
+        "mod",
+        "cc",
+        "submit pointer",
+        "emphasis"
+      ]
+    ],
+    "phaseDomains": {
+      "Arm": "autoclear",
+      "Clear": "autoclear",
+      "Resume": "autoclear"
+    }
+  },
+  "entities": {
+    "title": "State the mod touches",
+    "rows": [
+      [
+        "entity flag",
+        "Flag file"
+      ],
+      [
+        "entity store",
+        "Mod store"
+      ],
+      [
+        "flag.session_id",
+        "text",
+        "pk"
+      ],
+      [
+        "flag.pointer",
+        "text"
+      ],
+      [
+        "flag.created_at",
+        "timestamp"
+      ],
+      [
+        "store.last_clear_at",
+        "timestamp"
+      ],
+      [
+        "store.clears_last_hour",
+        "int"
+      ],
+      [
+        "store.pending_pointer",
+        "text"
+      ]
+    ]
+  },
+  "reviewFocus": [
+    {
+      "text": "Flag exactly 1800 s old fires; 1801 s is dropped.",
+      "test": "T3"
+    },
+    {
+      "text": "Turn interrupted (reason aborted) with a fresh flag: no clear, flag dropped.",
+      "test": "T3"
+    },
+    {
+      "text": "Pointer submitted exactly once, and only in the session after the clear.",
+      "test": "T4"
+    },
+    {
+      "text": "Two sessions writing the shared store at once do not corrupt it.",
+      "test": "T5"
+    }
+  ]
+}

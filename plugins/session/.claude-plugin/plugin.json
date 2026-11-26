@@ -1,8 +1,16 @@
 {
   "name": "session",
-  "version": "0.2.4",
+  "version": "0.3.0",
   "description": "Interview-first idea refinement (/refine), session handoff notes that let /clear replace /compact (/handoff) with the pivot gate that checks each note against the work item's intent file, and a searchable archive of earlier sessions that follows the handoff chain (/recall).",
   "author": {
     "name": "Luca Oronzo"
+  },
+  "userConfig": {
+    "minGapMinutes": {
+      "type": "number",
+      "title": "Auto-clear minimum gap (minutes)",
+      "description": "Minimum minutes between two automatic /clear runs after a handoff in the same project. 0 disables the gap check; a backstop of 12 clears per hour always applies.",
+      "default": 10
+    }
   }
 }

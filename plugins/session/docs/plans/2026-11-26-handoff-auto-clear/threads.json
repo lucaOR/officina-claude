@@ -1,0 +1,107 @@
+{
+  "next": 5,
+  "threads": [
+    {
+      "id": "t1",
+      "target": "node:flow.m2",
+      "kind": "comment",
+      "state": "open",
+      "messages": [
+        {
+          "by": "user",
+          "at": "2026-11-26T07:29:19.209Z",
+          "text": "What does it mean \"end turn\"?",
+          "question": "q1",
+          "suggestChange": false
+        },
+        {
+          "by": "claude",
+          "at": "2026-11-26T07:29:27.215Z",
+          "text": "A turn is one run of the assistant, from your prompt (or the previous clear) to its final message. Here the skill prints the pointer as the last line of its reply and stops, with no more tool calls. Claude Code then fires turn.complete (m3), and the mod acts only at that moment. That is why the clear is safe: it never lands while the model is still working.",
+          "question": "q1",
+          "suggestChange": false
+        }
+      ]
+    },
+    {
+      "id": "t2",
+      "target": "node:flow.m4",
+      "kind": "comment",
+      "state": "open",
+      "messages": [
+        {
+          "by": "user",
+          "at": "2026-11-26T07:32:57.998Z",
+          "text": "Is there one mod per session or just one to which multiple sessions converge?",
+          "question": "q2",
+          "suggestChange": false
+        },
+        {
+          "by": "claude",
+          "at": "2026-11-26T07:33:07.647Z",
+          "text": "One copy of the mod code, but each running Claude Code session loads its own instance of it, so two terminals mean two instances. They never talk to each other. What separates them is the session id in the flag file name (<session-id>.autoclear): an instance only acts on its own flag. What they share is $.store, one JSON file for the plugin. So the age guard (last_clear_at) should be keyed per project, not global, or one busy session would block another. I have not tested concurrent writes to that file; I will add that to the plan as a check.",
+          "question": "q2",
+          "suggestChange": true
+        },
+        {
+          "by": "user",
+          "at": "2026-11-26T07:33:34.498Z",
+          "text": "What happens if more than one session is running and at least two of them create the flag file?",
+          "question": "q3",
+          "suggestChange": false
+        },
+        {
+          "by": "claude",
+          "at": "2026-11-26T07:33:57.562Z",
+          "text": "Each flag is named by its own session id, so two sessions that arm at once do not interfere: each instance sees only its own flag and each clears and resumes on its own. While checking this I found a real gap in D5: I had planned to park the pointer in the shared store, but session.start in 2.1.332 carries no id of the previous session, so two simultaneous clears in one project could not tell whose pointer is whose. I changed D5 so the pointer is held in the mod instance (one per process) instead, and keyed the age guard in D3 per project. D5 is still your call.",
+          "question": "q3",
+          "suggestChange": false
+        }
+      ]
+    },
+    {
+      "id": "t3",
+      "target": "node:flow.mod",
+      "kind": "comment",
+      "state": "open",
+      "messages": [
+        {
+          "by": "user",
+          "at": "2026-11-26T07:34:28.740Z",
+          "text": "What is a \"mod\"? Explain it simple terms",
+          "question": "q4",
+          "suggestChange": false
+        },
+        {
+          "by": "claude",
+          "at": "2026-11-26T07:34:36.077Z",
+          "text": "A mod is a small TypeScript program that runs inside Claude Code itself and can react to what happens in the session: a turn ends, a prompt is sent, a tool is called. It can also act, for example run a slash command or submit a prompt. A normal hook is a separate script that gets a message and replies. A mod lives in the session, so it can do things a script cannot, such as typing /clear. Claude Code added mods in version 2.1.287; here it is a file inside the session plugin that Claude Code loads when you first allow mods.",
+          "question": "q4",
+          "suggestChange": false
+        }
+      ]
+    },
+    {
+      "id": "t4",
+      "target": "node:domain-autoclear.skip",
+      "kind": "comment",
+      "state": "open",
+      "messages": [
+        {
+          "by": "user",
+          "at": "2026-11-26T07:35:29.796Z",
+          "text": "What is a toast?",
+          "question": "q5",
+          "suggestChange": false
+        },
+        {
+          "by": "claude",
+          "at": "2026-11-26T07:35:36.673Z",
+          "text": "A toast is a short message that pops up in the Claude Code window for a few seconds and then disappears by itself, like a notification. Here it tells you why the auto-clear did not run, for example \"auto-clear skipped: draft in input box\". It does not stop anything or ask you to do anything; the printed pointer is still there if you want to clear by hand.",
+          "question": "q5",
+          "suggestChange": false
+        }
+      ]
+    }
+  ]
+}
