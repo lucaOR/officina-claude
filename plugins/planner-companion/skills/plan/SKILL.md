@@ -1,7 +1,7 @@
 ---
 name: plan
 description: Use when the user invokes /planner-companion:plan to co-design a plan on a live local page (decision cards, diagrams, tasks, ask threads, undoable changes) that ends in a plan.md, or /planner-companion:plan reopen <plan-folder> to resume an unfinished review.
-argument-hint: "<what to plan> | reopen <plan-folder>"
+argument-hint: "[--intent <file>] <what to plan> | reopen <plan-folder>"
 ---
 
 # /planner-companion:plan
@@ -22,6 +22,14 @@ Before your first question, read what the user pointed at and the code it touche
 
 Create the plan folder. `--project` is your primary working directory, so the plan lands where the SessionStart hook looks even when the shell has moved into a subdirectory:
 `node "${CLAUDE_SKILL_DIR}/scripts/planning.mjs" init <slug> --title "<title>" --project "<primary working directory>"`
+
+With `--intent <file>`, the file is an intent that an earlier session settled, usually the output of a refine skill. Read the whole file before your first question, then run the `init` call above with `--intent "<file>"` added. Map it like this:
+- Lines tagged `(user)` settle the goal, the constraints (its Non-goals) and the interview answers. Its Done-criteria seed the scenarios and `reviewFocus`.
+- Lines tagged as a guess, its Open questions and its How-details become `open` cards.
+- Interview only on what the file leaves unanswered.
+- A plan decision that would change its DEFINITIONS goes to the user and is never applied, because changing DEFINITIONS is the user's pivot.
+
+The plan never edits the intent file, and a patch must never `set` the `intent` field, which only `init` writes.
 
 Interview in the terminal, one question per message. End each question with **Recommended:** your answer and a one-line reason, so that "yes" settles it. The one exception is why they want this: ask it open, with nothing to pick from, until you know. Ask only what changes what gets built and what neither the request nor the project answers. Cover why now, what success looks like, goals, non-goals and anti-goals. Stop when every open point left is a choice between options you can name, because those become cards.
 
@@ -104,6 +112,9 @@ When the user closes the review, stop the page:
 
 `/planner-companion:plan reopen <folder>` resumes a review, and the SessionStart hook prints that line for every unfinished one. Restart the page and give the user its `url`:
 `node "${CLAUDE_SKILL_DIR}/scripts/planning.mjs" start <folder>`
+Before the `next` loop, check the plan's intent:
+`node "${CLAUDE_SKILL_DIR}/scripts/planning.mjs" intent-check <folder> --project "<primary working directory>"`
+When `changed` or `missing` is true, tell the user in one line. A plan without an intent prints `"intent":null`, so ignore that.
 Then run `next` until it prints `null`, handling each question as in section 4, because questions sent while no session listened are waiting there. Then arm `watch`. To orient yourself, list every code with its title instead of reading the whole source:
 `node "${CLAUDE_SKILL_DIR}/scripts/planning.mjs" index <folder>/working.json`
 

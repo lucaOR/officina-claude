@@ -11,6 +11,7 @@ One JSON file, `working.json` while a plan is being drafted and `plan.json` once
   "summary": ["three lines, codes allowed"], "checkFirst": ["D7"], "constraints": ["one line each"],
   "reviewFocus": [{"text": "input or condition, and the expected behaviour", "test": "T3"}],
   "counters": {"D": 17, "T": 8, "S": 12},
+  "intent": {"path": ".claude/intents/x.md", "sha256": "…"},
   "flow": {"title": "...", "rows": [["actor ui", "Dashboard", "frontend"]], "phaseDomains": {"Start": "mutex"}},
   "domains": [{"id": "mutex", "title": "Which requests does a deletion lock out?", "checks": ["..."],
                "diagram": {"type": "workflow", "title": "...", "rows": [["..."]]}}],
@@ -41,6 +42,8 @@ Diagrams are compact rows, described in `diagram-rows.md`. Each diagram field ta
 In `flow`, each phase label is a key of `phaseDomains`, such as `{"Ask": "ask"}`, so that its band links to the domain that decides it. A decision's `nodes` are node, actor or entity ids from these rows, or `m<n>` for a sequence's n-th message. The validator checks only that rows are arrays of strings. To check that a diagram renders, write it as `{"type", "title", "rows"}` to a spec file, with `sequence` for the flow and `erd` for the entities, and run `planning.mjs diagram <spec.json>`.
 
 ## Codes
+
+`intent` is optional and only `init --intent <file>` sets it. `path` is relative to the project when the file is inside it, else absolute, and `sha256` is the hash of the file bytes. `intent-check` compares it with the file, and `validate` ignores it.
 
 `D<n>` decisions, `T<n>` tasks, `S<n>` scenarios. They are append-only and never reused. `counters` holds the highest number issued per letter; a new element takes the next number and the counter moves up with it. To retire an element, set `removed` (and `replacedBy` when something supersedes it) instead of deleting it.
 

@@ -111,6 +111,21 @@ class SkillTests(unittest.TestCase):
         call = re.search(re.escape(INVOCATION) + r"init [^`]*", self.skill_text()).group(0)
         self.assertIn('--project "<primary working directory>"', call)
 
+    def test_skill_documents_intent_mode(self):
+        text = self.skill_text()
+        for needle in ("--intent", "intent-check", "DEFINITIONS"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, text)
+
+    def test_intent_commands_are_in_help(self):
+        r = subprocess.run(["node", str(CLI), "--help"], capture_output=True, text=True, timeout=60)
+        self.assertIn("intent-check", r.stdout)
+        self.assertIn("[--intent <file>]", r.stdout)
+
+    def test_intent_field_is_documented(self):
+        text = (SKILL_DIR / "reference" / "source-format.md").read_text()
+        self.assertIn('"intent": {"path"', text)
+
     def test_no_runtime_reads_outside_the_plugin(self):
         self.skill_text()
         for doc in docs():

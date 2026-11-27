@@ -296,7 +296,7 @@ function print(obj, code) { process.stdout.write(JSON.stringify(obj) + '\n'); re
 function usage(message) { if (message) process.stderr.write(`${message}\n`); help(process.stderr); return 2; }
 function help(out = process.stdout) {
   out.write('Usage: planning.mjs <command> [args]\n\nCommands:\n');
-  for (const [name, summary] of COMMANDS) out.write(`${name.padEnd(12)}${summary}\n`);
+  for (const [name, summary] of COMMANDS) out.write(`${name.padEnd(14)}${summary}\n`);
 }
 
 const [name, ...rest] = process.argv.slice(2);
