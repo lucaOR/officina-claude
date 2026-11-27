@@ -123,9 +123,15 @@ function upsertDiagnostics(current, patch, kind) {
   return out;
 }
 
+// Only `init --intent` writes `intent`. A patch that set it would switch off the drift check unnoticed.
+function intentDiagnostics(patch) {
+  if (!Object.hasOwn(patch.set || {}, 'intent')) return [];
+  return [{ code: 'intent-by-patch', path: 'set.intent', message: 'a patch cannot set intent; only init --intent writes it' }];
+}
+
 function applyLocked(dir, patch, meta) {
   return commit(dir, (current, log) => {
-    const refused = upsertDiagnostics(current, patch, meta.kind);
+    const refused = [...intentDiagnostics(patch), ...upsertDiagnostics(current, patch, meta.kind)];
     if (refused.length) return { out: { ok: false, diagnostics: refused } };
     const { next, touched, patchCodes } = applyToCopy(current, patch);
     const recorded = meta.kind !== 'author';

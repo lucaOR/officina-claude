@@ -106,5 +106,21 @@ class IntentCheckTests(CliTestCase):
             self.assertIs(out["intent"]["changed"], False)
 
 
+class IntentPatchTests(CliTestCase):
+    def test_patch_cannot_set_intent(self):
+        f = self.tmp / "i.md"
+        f.write_bytes(b"hello\n")
+        r = self.cli("init", "demo", "--title", "T", "--date", "2026-11-27", "--project", self.tmp, "--intent", f)
+        plan = Path(r.stdout.strip())
+        before = (plan / "working.json").read_bytes()
+        for kind in ("author", "change"):
+            with self.subTest(kind=kind):
+                r = self.cli("apply", plan, self.write({"set": {"intent": None}}), "--kind", kind, "--summary", "x")
+                self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+                codes = [d["code"] for d in json.loads(r.stdout)["diagnostics"]]
+                self.assertEqual(codes, ["intent-by-patch"])
+                self.assertEqual((plan / "working.json").read_bytes(), before)
+
+
 if __name__ == "__main__":
     unittest.main()

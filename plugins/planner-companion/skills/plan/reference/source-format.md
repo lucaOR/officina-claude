@@ -70,6 +70,7 @@ In `flow`, each phase label is a key of `phaseDomains`, such as `{"Ask": "ask"}`
 | `change-unknown` | with `undo`: the change id is not in the change log |
 | `patch-unreadable` | with `apply`: the patch file cannot be read or parsed as JSON |
 | `id-missing` | with `apply`: an upserted element has no `id`, or its `id` is not a string |
+| `intent-by-patch` | `apply` with any kind: `set` names `intent`, which only `init --intent` writes |
 | `pick-by-author` | with `apply --kind author`: an upsert changes `state`, `pick` or `whyPick` of an existing decision; settle it with `pick` or edit it with `apply --kind change` |
 | `header-missing` | with `update`: `goal`, `architecture` or `techStack` is missing or blank, so the real plan is not written |
 
