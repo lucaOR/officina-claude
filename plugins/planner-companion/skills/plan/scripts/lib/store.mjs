@@ -69,7 +69,7 @@ export function readJson(file) {
   return JSON.parse(fs.readFileSync(file, 'utf8'));
 }
 
-export function initPlan(plans, slug, title, date) {
+export function initPlan(plans, slug, title, date, intent = null) {
   const dir = path.join(plans, `${date}-${slug}`);
   if (fs.existsSync(dir)) throw new Error(`plan folder already exists: ${dir}`);
   fs.mkdirSync(dir, { recursive: true });
@@ -77,6 +77,7 @@ export function initPlan(plans, slug, title, date) {
   writeJsonAtomic(p.working, {
     schema: 1, slug, title, counters: { D: 0, T: 0, S: 0 },
     domains: [], decisions: [], tasks: [], scenarios: [],
+    ...(intent ? { intent } : {}),
   });
   writeJsonAtomic(p.changes, { next: 1, log: [] });
   writeJsonAtomic(p.threads, { next: 1, threads: [] });

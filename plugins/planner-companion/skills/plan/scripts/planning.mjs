@@ -8,6 +8,7 @@ import { renderDiagram } from './lib/diagrams.mjs';
 import { loadSource, validateSource, buildIndex } from './lib/source.mjs';
 import { renderMarkdown } from './lib/markdown.mjs';
 import { renderPlanPage } from './lib/page.mjs';
+import { describeIntent } from './lib/intent.mjs';
 import { initPlan, plansDir, stateDir } from './lib/store.mjs';
 import * as queue from './lib/queue.mjs';
 import { applyPatch, pick as pickOption, undo as undoChange, updateReal } from './lib/changes.mjs';
@@ -71,11 +72,17 @@ function parseArgs(args, valueFlags, boolFlags = []) {
 const outcome = result => print(result, result.ok ? 0 : result.conflict ? 3 : 1);
 
 function init(args) {
-  const { positionals, flags, error } = parseArgs(args, ['--title', '--date', '--project']);
+  const { positionals, flags, error } = parseArgs(args, ['--title', '--date', '--project', '--intent']);
   if (error) return usage(error);
   if (positionals.length !== 1 || !flags['--title']) return usage('init needs <slug> --title <title>');
   const date = flags['--date'] || new Date().toLocaleDateString('sv');
-  const dir = initPlan(plansDir(flags['--project'] || process.cwd(), process.env), positionals[0], flags['--title'], date);
+  const project = flags['--project'] || process.cwd();
+  let intent = null;
+  if (flags['--intent']) {
+    try { intent = describeIntent(project, flags['--intent']); }
+    catch (e) { return print({ ok: false, error: e.message }, 1); }
+  }
+  const dir = initPlan(plansDir(project, process.env), positionals[0], flags['--title'], date, intent);
   process.stdout.write(`${dir}\n`);
   return 0;
 }
@@ -254,7 +261,7 @@ const COMMANDS = [
   ['diagram', 'render a compact-row diagram spec to JSON: diagram <spec.json>', diagram],
   ['validate', 'validate a plan source: validate <source.json> [--previous <source.json>]', validate],
   ['index', 'print the code index of a plan source as JSON: index <source.json>', index],
-  ['init', 'create a plan folder and print its path: init <slug> --title <t> [--date YYYY-MM-DD] [--project <dir>]', init],
+  ['init', 'create a plan folder and print its path: init <slug> --title <t> [--date YYYY-MM-DD] [--project <dir>] [--intent <file>]', init],
   ['apply', 'write a patch to the working copy: apply <plan-dir> <patch.json> --kind author|change --summary <s> [--question <qid>]', apply],
   ['pick', 'settle a decision as a change: pick <plan-dir> <code> <option>', pick],
   ['undo', 'undo a change: undo <plan-dir> <change-id> [--with-later]', undo],
