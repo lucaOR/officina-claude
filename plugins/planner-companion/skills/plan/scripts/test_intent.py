@@ -48,5 +48,63 @@ class IntentInitTests(CliTestCase):
         self.assertNotIn("intent", self.working(self.init()))
 
 
+class IntentCheckTests(CliTestCase):
+    def setUp(self):
+        super().setUp()
+        self.file = self.tmp / ".claude" / "intents" / "x.md"
+        self.file.parent.mkdir(parents=True)
+        self.file.write_bytes(b"hello\n")
+
+    def init(self, intent=None, project=None):
+        extra = ["--intent", intent] if intent else []
+        r = self.cli("init", "demo", "--title", "T", "--date", "2026-11-27", "--project", project or self.tmp, *extra)
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        return r.stdout.strip()
+
+    def check(self, plan, project=None):
+        r = self.cli("intent-check", plan, "--project", project or self.tmp)
+        return r.returncode, json.loads(r.stdout)
+
+    def test_unchanged(self):
+        code, out = self.check(self.init(self.file))
+        self.assertEqual(code, 0)
+        self.assertIs(out["ok"], True)
+        self.assertIs(out["intent"]["changed"], False)
+        self.assertIs(out["intent"]["missing"], False)
+
+    def test_changed_after_edit(self):
+        plan = self.init(self.file)
+        self.file.write_bytes(b"edited\n")
+        code, out = self.check(plan)
+        self.assertEqual(code, 1)
+        self.assertIs(out["ok"], True)
+        self.assertIs(out["intent"]["changed"], True)
+        self.assertIs(out["intent"]["missing"], False)
+        self.assertEqual(out["intent"]["current"], sha(b"edited\n"))
+
+    def test_missing_file(self):
+        plan = self.init(self.file)
+        self.file.unlink()
+        code, out = self.check(plan)
+        self.assertEqual(code, 1)
+        self.assertIs(out["intent"]["missing"], True)
+        self.assertIs(out["intent"]["changed"], True)
+        self.assertIsNone(out["intent"]["current"])
+
+    def test_plan_without_intent(self):
+        r = self.cli("intent-check", self.init(), "--project", self.tmp)
+        self.assertEqual(r.returncode, 0)
+        self.assertEqual(r.stdout.strip(), '{"ok":true,"intent":null}')
+
+    def test_absolute_path_outside_project_resolves(self):
+        with tempfile.TemporaryDirectory(prefix="with space ") as other:
+            f = Path(other) / "i.md"
+            f.write_bytes(b"x")
+            plan = self.init(f)
+            code, out = self.check(plan, project=other)
+            self.assertEqual(code, 0)
+            self.assertIs(out["intent"]["changed"], False)
+
+
 if __name__ == "__main__":
     unittest.main()

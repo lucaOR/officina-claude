@@ -14,3 +14,15 @@ export function describeIntent(projectDir, file) {
   const inside = rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
   return { path: inside ? rel : abs, sha256: sha256(bytes) };
 }
+
+// Compare a recorded intent ({path, sha256}) with the file as it is now.
+export function checkIntent(projectDir, recorded) {
+  const abs = path.resolve(projectDir, recorded.path);
+  let current = null;
+  try { current = sha256(fs.readFileSync(abs)); }
+  catch (e) { if (e.code !== 'ENOENT') throw e; }
+  return {
+    path: recorded.path, sha256: recorded.sha256, current,
+    changed: current !== recorded.sha256, missing: current === null,
+  };
+}

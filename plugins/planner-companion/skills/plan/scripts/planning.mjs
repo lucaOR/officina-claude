@@ -8,8 +8,8 @@ import { renderDiagram } from './lib/diagrams.mjs';
 import { loadSource, validateSource, buildIndex } from './lib/source.mjs';
 import { renderMarkdown } from './lib/markdown.mjs';
 import { renderPlanPage } from './lib/page.mjs';
-import { describeIntent } from './lib/intent.mjs';
-import { initPlan, plansDir, stateDir } from './lib/store.mjs';
+import { checkIntent, describeIntent } from './lib/intent.mjs';
+import { initPlan, planPaths, plansDir, readJson, stateDir } from './lib/store.mjs';
 import * as queue from './lib/queue.mjs';
 import { applyPatch, pick as pickOption, undo as undoChange, updateReal } from './lib/changes.mjs';
 
@@ -85,6 +85,18 @@ function init(args) {
   const dir = initPlan(plansDir(project, process.env), positionals[0], flags['--title'], date, intent);
   process.stdout.write(`${dir}\n`);
   return 0;
+}
+
+function intentCheck(args) {
+  const { positionals, flags, error } = parseArgs(args, ['--project']);
+  if (error) return usage(error);
+  if (positionals.length !== 1) return usage('intent-check needs <plan-dir> [--project <dir>]');
+  try {
+    const { intent } = readJson(planPaths(positionals[0]).working);
+    if (!intent) return print({ ok: true, intent: null }, 0);
+    const result = checkIntent(flags['--project'] || process.cwd(), intent);
+    return print({ ok: true, intent: result }, result.changed ? 1 : 0);
+  } catch (e) { return print({ ok: false, error: e.message }, 1); }
 }
 
 async function apply(args) {
@@ -262,6 +274,7 @@ const COMMANDS = [
   ['validate', 'validate a plan source: validate <source.json> [--previous <source.json>]', validate],
   ['index', 'print the code index of a plan source as JSON: index <source.json>', index],
   ['init', 'create a plan folder and print its path: init <slug> --title <t> [--date YYYY-MM-DD] [--project <dir>] [--intent <file>]', init],
+  ['intent-check', 'report whether the plan\'s intent file changed: intent-check <plan-dir> [--project <dir>]', intentCheck],
   ['apply', 'write a patch to the working copy: apply <plan-dir> <patch.json> --kind author|change --summary <s> [--question <qid>]', apply],
   ['pick', 'settle a decision as a change: pick <plan-dir> <code> <option>', pick],
   ['undo', 'undo a change: undo <plan-dir> <change-id> [--with-later]', undo],
